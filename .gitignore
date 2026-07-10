@@ -1,0 +1,11 @@
+node_modules/
+dist/
+out/
+.tscircuit/
+
+# local yalc links to sibling checkouts (see UPSTREAM-FIXES.md: never commit
+# yalc artifacts); bun.lock is ignored until @tscircuit/core resolves from the
+# registry rather than a yalc link
+.yalc/
+yalc.lock
+bun.lock

@@ -1,0 +1,44 @@
+{
+	"name": "pcb-enclosure",
+	"type": "module",
+	"version": "0.0.0",
+	"description": "Generate parametric enclosures (FDM-first) that fit tscircuit Circuit JSON boards: sizing, mounting standoffs, heat-set bosses, and feature cutouts.",
+	"module": "lib/index.ts",
+	"types": "lib/index.ts",
+	"exports": {
+		".": "./lib/index.ts",
+		"./register": "./lib/register.ts"
+	},
+	"files": ["lib"],
+	"scripts": {
+		"build:examples": "tsci build examples --disable-parts-engine --ignore-warnings",
+		"build:stl": "bun run scripts/render-board.tsx && bun run scripts/build.ts",
+		"check:examples": "bun run build:examples && bun run scripts/check-examples.ts",
+		"dev": "bun run build:examples && bun run scripts/prepare-web.ts && bun run scripts/check-local-viewer.ts && RUNFRAME_STANDALONE_FILE_PATH=../runframe/dist/standalone.min.js tsci dev .tscircuit/web-examples",
+		"test": "bun test",
+		"typecheck": "bunx tsc --noEmit",
+		"format": "biome format --write ."
+	},
+	"dependencies": {
+		"zod": "^3.25.67"
+	},
+	"peerDependencies": {
+		"@tscircuit/core": ">=0.0.1348"
+	},
+	"overrides": {
+		"@tscircuit/circuit-json-util": "0.0.99",
+		"@tscircuit/core": "file:.yalc/@tscircuit/core",
+		"kicadts": "0.0.50"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.4",
+		"@jscad/modeling": "^2.13.0",
+		"@jscad/stl-serializer": "^2.1.23",
+		"@types/bun": "^1.2.16",
+		"@types/react": "^19.1.8",
+		"circuit-json": "^0.0.446",
+		"jscad-planner": "^0.0.14",
+		"react": "^19.1.0",
+		"tscircuit": "0.0.2032"
+	}
+}
