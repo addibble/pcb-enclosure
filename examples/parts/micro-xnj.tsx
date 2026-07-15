@@ -1,4 +1,5 @@
 import { Fragment, type ReactNode } from "react";
+import { enclosure } from "../../lib/index";
 
 const pinLabels = {
 	pin1: ["VBUS"],
@@ -152,12 +153,11 @@ export const MicroXnj = ({
 		pcbRotation={pcbRotation}
 	>
 		{children ?? (
-			<cutoutaperture
-				shape="rounded_rect"
-				widthMm={8}
-				heightMm={3}
-				cornerRadiusMm={1.2}
-				zCenterAboveBoardMm={1.5}
+			<enclosure.cutoutaperture
+				shape="pill"
+				width={8}
+				height={3}
+				position={{ z: 1.5 }}
 			/>
 		)}
 	</connector>

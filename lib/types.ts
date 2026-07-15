@@ -47,7 +47,7 @@ export type LidHole =
 	| "counterbore"; // cylindrical recess for a socket-head cap screw
 
 /**
- * One resolved PCB fastening point, built by `<enclosure>` from the board's
+ * One resolved PCB fastening point, built from the selected board's
  * auto-extracted mounting holes.
  */
 export interface FastenerSpec {
@@ -64,6 +64,17 @@ export interface ComponentBody {
 	id: string;
 	/** Body center in board-plane coordinates. */
 	center: XY;
+	/**
+	 * Component-local mounting frame projected into the board plane. Aperture
+	 * positions use this origin and rotation; local z=0 is the component-side PCB
+	 * surface and positive z points away from the board.
+	 */
+	componentFrame?: {
+		origin: XY;
+		rotationDeg: number;
+		/** Bottom-side footprints mirror their local Y axis before rotation. */
+		flipY?: boolean;
+	};
 	lengthMm: number; // axis-aligned extent along x
 	widthMm: number; // axis-aligned extent along y
 	/** Body height measured outward from the owning PCB surface. */
@@ -172,6 +183,12 @@ export interface EnclosureFeatures {
 
 /** Tunable parameters for the split_shell (base + lid) case. */
 export interface EnclosureParams {
+	/** Optional outer X dimension; inferred from the board when omitted. */
+	widthMm?: number;
+	/** Optional outer Y dimension; inferred from the board when omitted. */
+	heightMm?: number;
+	/** Optional total outer Z dimension; inferred from the component stack when omitted. */
+	depthMm?: number;
 	/** Outer shell wall thickness. */
 	wallThicknessMm: number;
 	/** Floor (base bottom) thickness. */
@@ -189,9 +206,8 @@ export interface EnclosureParams {
 	/** Extra/override mounting-hardware definitions merged over the built-in catalog. */
 	mountingHardwareCatalog?: MountingHardwareCatalog;
 	/**
-	 * Auto-detect cutouts from edge/top connectors. **Opt-in** (default false):
-	 * enclosures usually configure cutouts explicitly, so auto-detection runs only
-	 * when set true (the simple "open the wall at my connectors" case).
+	 * Automatically place explicitly declared part apertures. **Opt-in**
+	 * (default false); this never invents aperture existence or geometry.
 	 */
 	autoCutouts?: boolean;
 	/** Injected manufacturing design rules; defaults to `DEFAULT_DESIGN_RULES`. */

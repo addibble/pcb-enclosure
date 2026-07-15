@@ -7,7 +7,10 @@
  *   bun run scripts/render-board.tsx
  */
 import { mkdirSync, writeFileSync } from "node:fs";
-import { prefabBoardCircuitJson } from "../examples/prefab-board-circuit-json";
+import {
+	prefabBoardAperturesBySourceComponentId,
+	prefabBoardCircuitJson,
+} from "../examples/prefab-board-circuit-json";
 import { resolveCutouts } from "../lib/cutouts";
 import { extractEnclosureFeatures } from "../lib/extract-features";
 
@@ -19,7 +22,9 @@ writeFileSync(
 	JSON.stringify(circuitJson, null, 2),
 );
 
-const f = extractEnclosureFeatures(circuitJson);
+const f = extractEnclosureFeatures(circuitJson, {
+	aperturesBySourceComponentId: prefabBoardAperturesBySourceComponentId,
+});
 console.log("board bounds:", f.bounds, "thickness:", f.boardThicknessMm);
 console.log("mount points:", f.mountPoints.length);
 for (const m of f.mountPoints)
@@ -30,7 +35,7 @@ const cutouts = resolveCutouts(f, [], { autoCutouts: true }); // opt-in demo
 console.log("cutouts:", cutouts.length);
 for (const c of cutouts)
 	console.log(
-		`  • ${c.id} [${c.origin}] face=${c.face} ${c.shape} ${c.widthMm.toFixed(1)}x${c.heightMm.toFixed(1)}${c.isFallback ? " (bbox fallback)" : ""}`,
+		`  • ${c.id} [${c.origin}] face=${c.face} ${c.shape} ${c.widthMm.toFixed(1)}x${c.heightMm.toFixed(1)}`,
 	);
 console.log("top component height:", f.topComponentHeightMm.toFixed(1), "mm");
 console.log(

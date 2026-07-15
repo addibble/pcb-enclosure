@@ -2,9 +2,9 @@
  * Minimal step-based solver base — a self-contained subset of
  * `@tscircuit/solver-utils`' `BaseSolver`.
  *
- * The enclosure `<enclosure>` component runs inside the eval webworker, where the
- * file-server can't serve some of `graphics-debug`'s assets (they come back as
- * `__STATIC_ASSET__`). `@tscircuit/solver-utils` does a *runtime* import of
+ * The enclosure artifact renderer can run inside the eval webworker, where the
+ * file server cannot serve some `graphics-debug` assets. `@tscircuit/solver-utils`
+ * does a *runtime* import of
  * `graphics-debug`, so depending on it would drag that graph into the worker.
  * The placement solver only needs the bare step/solve scaffolding, so we inline
  * it here and keep the heavy solver-utils/graphics-debug deps to dev-only

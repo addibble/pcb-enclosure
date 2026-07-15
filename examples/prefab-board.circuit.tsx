@@ -1,4 +1,4 @@
-import "../lib/register";
+import { enclosure } from "../lib/index";
 import { Dc0055a20Smt } from "./parts/dc-005-5a-2-0-smt";
 import { MicroXnj } from "./parts/micro-xnj";
 import { Pj320d } from "./parts/pj-320d";
@@ -39,6 +39,6 @@ export default () => (
 			/>
 			<SmaKwe name="J7" pcbX={-boardWidthMm / 2 + 4} pcbY={-12} />
 		</PrefabBoard>
-		<enclosure name="EN1" boardRef=".B1" autoCutouts />
+		<enclosure.fdm.box name="EN1" boardRef=".B1" autoCutouts />
 	</group>
 );

@@ -10,18 +10,21 @@ board outline, mounting holes, component heights, and connector placement.
 
 - Board-driven shell sizing with configurable wall, floor, lid, clearance,
   standoff, headroom, and lid-lip dimensions.
+- Optional outer `width`, `height`, and `depth` overrides from the upstream
+  `enclosure.fdm.box` props contract.
 - PCB mounting posts at compatible board holes using a data-driven hardware
   stack (M3 heat-set by default).
 - External corner fastening ears when mounting holes do not cover the corners.
-- Opt-in automatic connector openings, including USB-C aperture profiles and
-  rectangular footprint-bound fallbacks.
+- Automatic placement of explicitly declared connector apertures.
 - Visible bushings and screws with a toggleable exploded assembly view.
 - Seated-assembly and board-insertion collision checks.
-- Serializable JSCAD plans for the tscircuit 3D viewer and STL generation.
+- Read-only canonical Circuit JSON input with ephemeral enclosure specs.
+- Standalone enclosure GLB, STL, and combined PCB/enclosure preview output.
 
-The `<enclosure />` child vocabulary developed on later branches is not part of
-this `main` snapshot. In particular, there is no
-`<enclosurecutout>`, `<standoff>`, or `<screwboss>` JSX child API here.
+There is no public `<enclosure>` intrinsic or canonical Circuit JSON enclosure
+record. The imported namespace records a package-private spec associated with
+the active circuit; the artifact renderer consumes canonical Circuit JSON after
+the board has rendered.
 
 ## Required modified upstreams
 
@@ -32,13 +35,13 @@ use these addibble-owned branches together:
 
 | Repository branch | Required capability |
 | --- | --- |
-| [`addibble/core:enclosure-support`](https://github.com/addibble/core/tree/enclosure-support) | External intrinsic registration, part aperture serialization, and preservation of CAD model size. |
-| [`addibble/circuit-json:feature/cutout-aperture`](https://github.com/addibble/circuit-json/tree/feature/cutout-aperture) | `source_component.cutout_aperture` schema. |
-| [`addibble/props:feature/cutout-aperture`](https://github.com/addibble/props/tree/feature/cutout-aperture) | Typed `<cutoutaperture>` child-element props. |
+| Local `core:rfc/parametric-enclosures` | Generic external React host elements, mounting-origin preservation, and CAD model size metadata. |
+| Local `circuit-json-util:rfc/parametric-enclosures` | Transform `pcb_component.anchor_position` with component/group layout. |
+| [`@tscircuit/props@0.0.580`](https://github.com/tscircuit/props/releases/tag/v0.0.580) | Merged `enclosure.fdm.box` and `enclosure.cutoutaperture` contracts from [#733](https://github.com/tscircuit/props/pull/733) and [#732](https://github.com/tscircuit/props/pull/732). |
 | [`addibble/infer-cable-insertion-point:fix/explicit-insertion-direction`](https://github.com/addibble/infer-cable-insertion-point/tree/fix/explicit-insertion-direction) | Explicit mating direction takes precedence over geometry guessing. |
-| [`addibble/eval:enclosure-support`](https://github.com/addibble/eval/tree/enclosure-support) | Browser evaluation of `.cjs` dependencies used by JSCAD tooling. |
-| [`addibble/runframe:enclosure-support`](https://github.com/addibble/runframe/tree/enclosure-support) | `.cjs` delivery, embedded eval-worker use, and enclosure STL export. |
-| [`addibble/3d-viewer:enclosure-support`](https://github.com/addibble/3d-viewer/tree/enclosure-support) | Per-part opacity and exploded enclosure rendering. |
+| [`addibble/eval:enclosure-support`](https://github.com/addibble/eval/tree/enclosure-support) | Optional preview-artifact protocol, runtime props schemas, and bundled JSCAD/GLB modules. |
+| [`addibble/runframe:enclosure-support`](https://github.com/addibble/runframe/tree/enclosure-support) | Blob-backed enclosure GLB artifacts composed only into the CAD preview. |
+| [`addibble/3d-viewer:enclosure-support`](https://github.com/addibble/3d-viewer/tree/enclosure-support) | GLB rendering plus the current enclosure-viewer compatibility work. |
 | [`addibble/jscad-electronics:fix/connected-right-angle-pinrow`](https://github.com/addibble/jscad-electronics/tree/fix/connected-right-angle-pinrow) | Correct connected geometry for inverted right-angle pin rows. |
 
 The local development setup uses these repositories as sibling checkouts and
@@ -48,10 +51,10 @@ compatibility analysis, tests, and publication status of every upstream change.
 
 ## Element usage
 
-`<enclosure />` is an assembly-level sibling of `<board />`:
+`<enclosure.fdm.box />` is an assembly-level sibling of `<board />`:
 
 ```tsx
-import "pcb-enclosure/register"
+import { enclosure } from "pcb-enclosure"
 
 export default () => (
   <group>
@@ -62,7 +65,7 @@ export default () => (
       <hole pcbX={-20} pcbY={13} diameter="3.2mm" />
     </board>
 
-    <enclosure name="EN1" boardRef=".B1" autoCutouts />
+    <enclosure.fdm.box name="EN1" boardRef=".B1" autoCutouts />
   </group>
 )
 ```
@@ -72,6 +75,8 @@ Supported props:
 | Prop | Purpose |
 | --- | --- |
 | `boardRef` | Select the board to enclose, such as `.B1`. |
+| `width` / `height` | Optional outer X/Y dimensions; inferred from the board and clearances when omitted. |
+| `depth` | Optional total outer Z dimension; inferred from the PCB/component stack when omitted. |
 | `wallThickness` | Printed side-wall thickness. |
 | `floorThickness` | Base floor thickness. |
 | `lidThickness` | Lid top-plate thickness. |
@@ -80,7 +85,7 @@ Supported props:
 | `topHeadroom` | Clearance above the tallest top-side component. |
 | `lidLipDepth` | Depth of the friction-fit lid lip. |
 | `anchor` | Mounting stack key, such as `m3-heat-set` or `m2-self-tap`. |
-| `autoCutouts` | Opt into wall/lid openings for connectors and other deliberately profiled parts. |
+| `autoCutouts` | Place wall/lid openings declared by parts; never infer aperture existence or geometry. |
 
 ## Part metadata and automatic cutouts
 
@@ -88,26 +93,38 @@ Parts carry their nominal opening as a composable child beside their footprint
 and CAD model:
 
 ```tsx
+import { enclosure } from "pcb-enclosure"
+
 <connector name="J1">
-  <cutoutaperture
-    shape="rounded_rect"
-    widthMm={3.66}
-    heightMm={8.34}
-    cornerRadiusMm={1.83}
-    zCenterAboveBoardMm={6.75}
+  <enclosure.cutoutaperture
+    shape="pill"
+    width={3.66}
+    height={8.34}
+    position={{ z: "6.75mm" }}
   />
 </connector>
 ```
 
+The upstream schema supports `pill`, `rect`, and `circle`; circle dimensions use
+`radius`. `pcb-enclosure` retains `position` as a backwards-compatible extension
+while that placement vocabulary continues to evolve upstream.
+
+`position` is measured in the component's local mounting frame: x/y from the
+footprint origin and z from the component-side PCB surface, positive away from
+the board. Every axis is optional; enclosure resolution keeps the existing
+part-type inference for omitted axes. Position coordinates use ordinary
+tscircuit distances, so default-unit numbers and strings such as `"6.75mm"` or
+`"0.1in"` can be mixed.
+
 This requires a coordinated data path:
 
-1. `@tscircuit/props` defines the typed `<cutoutaperture>` child props.
-2. Core registers a `CutoutAperture` primitive and lowers the child into its
-   parent part's source record.
-3. Circuit JSON validates the snake-case
-   `source_component.cutout_aperture` representation.
-4. `pcb-enclosure` extracts that metadata and uses it to size the wall or lid
-   opening. Parts without it fall back to a rectangular body-bounds opening.
+1. `@tscircuit/props` defines the typed `enclosure.cutoutaperture` shape props.
+2. Core retains the imported element as a generic, no-output tree node with its
+   normal-component parent relationship intact.
+3. `pcb-enclosure` collects the node and maps its owner through
+   `source_component_id` without writing aperture data to Circuit JSON.
+4. The artifact renderer combines that ephemeral aperture map with canonical
+   Circuit JSON. Parts without a declaration receive no opening.
 
 The footprint also declares its invariant, part-local `insertionDirection`.
 Core rotates that direction with the instance's `pcbRotation` and emits the
@@ -122,7 +139,7 @@ farther inboard.
 
 The concrete example parts under `examples/parts/` keep their supplier
 footprint, silkscreen, CAD alignment, measured model bounds, insertion direction,
-and `<cutoutaperture>` child together. Because it is ordinary TSX, a reusable
+and `<enclosure.cutoutaperture>` child together. Because it is ordinary TSX, a reusable
 part can compose a default child while allowing callers to supply a replacement
 child. Circuit placement code only chooses `pcbX`, `pcbY`, and `pcbRotation`.
 
@@ -139,8 +156,9 @@ bun install
 bun run check:examples
 ```
 
-The checker verifies the emitted base/lid plans, expected post/ear/cutout counts,
-hardware-compatible geometry, and seated/insertion clearance.
+The checker confirms canonical Circuit JSON contains no enclosure topology, then
+verifies the separately rendered base/lid plans, post/ear/cutout counts,
+hardware geometry, and seated/insertion clearance.
 
 ## Run the web UI
 
@@ -148,27 +166,16 @@ hardware-compatible geometry, and seated/insertion clearance.
 bun run dev
 ```
 
-Open <http://localhost:3020>. The command first builds the custom element
-server-side, then serves the resulting `*.circuit.json` gallery. This two-stage
-flow is intentional: the browser evaluator currently exposes built-in tscircuit
-elements only, while RunFrame can render the enclosure JSCAD plans from built
-Circuit JSON. The dev command uses the local enclosure-enabled viewer bundle at
-`../runframe/dist/standalone.min.js`.
+Open <http://localhost:3020>. The command runs the prefab TSX through the local
+eval worker. Core produces canonical Circuit JSON, `pcb-enclosure` produces a
+separate GLB artifact, and RunFrame adds a temporary GLB-backed CAD component
+only to the 3D preview. The Circuit JSON tab and callbacks remain canonical.
 
 In RunFrame:
 
-1. Choose an example from the file selector at the top.
-2. Select **3D** to inspect the assembled base, PCB, and lid.
-3. Drag to orbit and scroll to zoom.
-4. Right-click the viewport and open **Appearance**.
-5. Click **EN1 Base** or **EN1 Lid** to cycle that part through visible,
-   transparent, hidden, and back to visible.
-6. Toggle **Exploded Enclosure** in the same right-click menu to keep the base
-   seated while lifting the lid, bushings, and screws into separate Z layers.
-
-The appearance icons are checked (visible), half-state `⍻` (transparent), and
-blank (hidden). The same context menu also provides camera controls and
-**Download GLTF**.
+Select **3D** to inspect the assembled enclosure and PCB together. Drag to orbit,
+scroll to zoom, and use the context menu for camera controls or **Download
+GLTF**.
 
 Use another port when needed:
 
@@ -198,9 +205,10 @@ prints the enclosure dimensions, mounting-hardware BOM, and collision results.
 | --- | --- |
 | `lib/extract-features.ts` | Circuit JSON to board bounds, mounting points, and component bodies. |
 | `lib/placement-solver.ts` | Validate PCB mounts and place uncovered corner fasteners. |
-| `lib/cutouts.ts` | Resolve opt-in connector apertures and fallback openings. |
+| `lib/cutouts.ts` | Place and validate explicitly declared apertures. |
 | `lib/build-enclosure.ts` | Lower the resolved design to split-shell CSG. |
-| `lib/Enclosure.ts` | Integrate the generator with the tscircuit render phases. |
+| `lib/render-enclosure.ts` | Pure canonical-Circuit-JSON artifact renderer. |
+| `lib/preview-artifact.ts` | Ephemeral spec-to-GLB host adapter. |
 
 ## License
 

@@ -1,4 +1,5 @@
 import { Fragment, type ReactNode } from "react";
+import { enclosure } from "../../lib/index";
 
 const pinLabels = {
 	pin1: ["1"],
@@ -110,10 +111,10 @@ export const Pj320d = ({
 		pcbRotation={pcbRotation}
 	>
 		{children ?? (
-			<cutoutaperture
+			<enclosure.cutoutaperture
 				shape="circle"
-				diameterMm={6.5}
-				zCenterAboveBoardMm={2.7}
+				radius={3.25}
+				position={{ z: 2.7 }}
 			/>
 		)}
 	</connector>

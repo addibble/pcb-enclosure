@@ -7,37 +7,46 @@
 	"types": "lib/index.ts",
 	"exports": {
 		".": "./lib/index.ts",
+		"./renderer": "./lib/renderer.ts",
 		"./register": "./lib/register.ts"
 	},
-	"files": ["lib"],
+	"files": [
+		"lib"
+	],
 	"scripts": {
 		"build:examples": "tsci build examples --disable-parts-engine --ignore-warnings",
 		"build:stl": "bun run scripts/render-board.tsx && bun run scripts/build.ts",
 		"check:examples": "bun run build:examples && bun run scripts/check-examples.ts",
-		"dev": "bun run build:examples && bun run scripts/prepare-web.ts && bun run scripts/check-local-viewer.ts && RUNFRAME_STANDALONE_FILE_PATH=../runframe/dist/standalone.min.js tsci dev .tscircuit/web-examples",
+		"dev": "bun run scripts/prepare-local-runframe.ts && RUNFRAME_STANDALONE_FILE_PATH=../runframe/dist/standalone.local.min.js bun --hot ../cli/cli/main.ts dev examples/prefab-board.circuit.tsx",
 		"test": "bun test",
 		"typecheck": "bunx tsc --noEmit",
 		"format": "biome format --write ."
 	},
 	"dependencies": {
+		"@jscad/modeling": "^2.13.0",
+		"jscad-to-gltf": "^0.0.5",
 		"zod": "^3.25.67"
 	},
 	"peerDependencies": {
-		"@tscircuit/core": ">=0.0.1348"
+		"@tscircuit/core": "*",
+		"@tscircuit/props": ">=0.0.580",
+		"circuit-json": "*",
+		"react": ">=19"
 	},
 	"overrides": {
 		"@tscircuit/circuit-json-util": "0.0.99",
-		"@tscircuit/core": "file:.yalc/@tscircuit/core",
 		"kicadts": "0.0.50"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.4",
-		"@jscad/modeling": "^2.13.0",
 		"@jscad/stl-serializer": "^2.1.23",
+		"@tscircuit/core": "^0.0.1451",
+		"@tscircuit/props": "0.0.580",
 		"@types/bun": "^1.2.16",
 		"@types/react": "^19.1.8",
-		"circuit-json": "^0.0.446",
+		"circuit-json": "^0.0.448",
 		"jscad-planner": "^0.0.14",
+		"poppygl": "^0.0.24",
 		"react": "^19.1.0",
 		"tscircuit": "0.0.2032"
 	}

@@ -3,7 +3,7 @@
  * heuristic threshold the generator uses, in one coherent, swappable interface.
  *
  * These are *rules of the craft*, not user-facing parameters — a designer tunes
- * `wallThickness` on `<enclosure>`; a process engineer tunes `slidingFitMm`
+ * `wallThickness` on `<enclosure.fdm.box>`; a process engineer tunes `slidingFitMm`
  * here. The rules are **injected** (passed in), never imported at the point of
  * use, so a future per-process profile (FDM vs SLS vs molded) can swap the whole
  * `DesignRules` set. `DEFAULT_DESIGN_RULES` is the FDM-tuned default every

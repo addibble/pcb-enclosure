@@ -1,7 +1,7 @@
 /**
  * Browser-safe recorder for the JSCAD operations used by split-shell geometry.
- * The emitted plain objects use the model_jscad operation schema consumed by
- * tscircuit's 3D viewer and STL exporter.
+ * The emitted plain objects are internal artifact plans consumed by the GLB and
+ * manufacturing exporters.
  */
 type Plan = Record<string, unknown>;
 

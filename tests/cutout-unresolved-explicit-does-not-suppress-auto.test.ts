@@ -22,6 +22,11 @@ const features: EnclosureFeatures = {
 			widthMm: 9,
 			heightMm: 8.5,
 			ftype: "simple_pin_header",
+			cutoutAperture: {
+				shape: "rect",
+				widthMm: 9,
+				heightMm: 8.5,
+			},
 		},
 	],
 	topComponentHeightMm: 8.5,

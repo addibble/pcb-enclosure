@@ -1,12 +1,13 @@
 import { expect, test } from "bun:test";
 
-test("the package root exports the board-mounting analysis API", async () => {
-	const mod = await import("pcb-enclosure");
+test("the package root exposes authoring while renderer APIs use a subpath", async () => {
+	const authoring = await import("pcb-enclosure");
+	const renderer = await import("pcb-enclosure/renderer");
 
-	expect(typeof mod.extractEnclosureFeatures).toBe("function");
-	expect(typeof mod.resolveMountingHardware).toBe("function");
-	expect(typeof mod.resolveCutoutAperture).toBe("function");
-	expect(typeof mod.resolveCutouts).toBe("function");
-	expect(typeof mod.EnclosurePlacementSolver).toBe("function");
-	expect(typeof mod.buildEnclosure).toBe("function");
+	expect(typeof authoring.enclosure.fdm.box).toBe("function");
+	expect(typeof renderer.extractEnclosureFeatures).toBe("function");
+	expect(typeof renderer.resolveMountingHardware).toBe("function");
+	expect(typeof renderer.resolveCutouts).toBe("function");
+	expect(typeof renderer.EnclosurePlacementSolver).toBe("function");
+	expect(typeof renderer.buildEnclosure).toBe("function");
 });

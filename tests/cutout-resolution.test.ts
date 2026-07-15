@@ -30,6 +30,12 @@ const edgeHeader: ComponentBody = {
 	widthMm: 9, // y extent (runs along the wall)
 	heightMm: 8.5,
 	ftype: "simple_pin_header",
+	cutoutAperture: {
+		shape: "rect",
+		widthMm: 9,
+		heightMm: 8.5,
+		position: { z: 4.25 },
+	},
 };
 
 test("auto cutouts: only edge-mount ftypes near an edge; sized face-relative", () => {
@@ -48,6 +54,11 @@ test("auto cutouts: only edge-mount ftypes near an edge; sized face-relative", (
 		widthMm: 4,
 		heightMm: 6,
 		ftype: "simple_connector",
+		cutoutAperture: {
+			shape: "rect",
+			widthMm: 4,
+			heightMm: 6,
+		},
 	};
 	const out = resolveCutouts(
 		features([edgeHeader, interiorButton, interiorConnector]),

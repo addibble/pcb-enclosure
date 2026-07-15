@@ -1,11 +1,8 @@
-// Registers the <enclosure /> tag with the tscircuit reconciler (side effect).
-import "pcb-enclosure/register";
+import { enclosure } from "../lib/index";
 
 /**
- * A board that grows its own case: drop an `<enclosure />` beside the `<board />`
- * (referencing it with `boardRef`) and `tsci dev` / the GUI renders a base + lid
- * you can view in 3D and export to STL. Sizing is board-driven; `autoCutouts`
- * opens walls at edge connectors.
+ * A board that grows its own case: drop an `<enclosure.fdm.box />` beside the
+ * `<board />` and `tsci dev` / the GUI renders a base + lid.
  */
 export default () => (
 	<group>
@@ -17,7 +14,7 @@ export default () => (
 			<resistor name="R1" resistance="10k" footprint="0805" pcbX={0} pcbY={0} />
 		</board>
 
-		<enclosure
+		<enclosure.fdm.box
 			name="EN1"
 			boardRef=".B1"
 			wallThickness="2mm"

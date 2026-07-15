@@ -7,23 +7,17 @@ import { DEFAULT_DESIGN_RULES, type DesignRules } from "./design-rules";
 import type { ComponentBody, EnclosureFeatures, Face, XY } from "./types";
 
 /**
- * The single cutout-resolution pipeline. Both the `<enclosure>` component and
- * the build scripts go through here, so auto cutouts (from detected edge
- * connectors) and explicit `<enclosurecutout>` children share one face-inference
- * policy, one aperture-shape policy, and one sizing rule.
+ * The single cutout-resolution pipeline used by the artifact renderer.
  *
  * Policy:
- *  - **Auto** cutouts are **opt-in** (`autoCutouts: true`): most enclosures
- *    configure openings explicitly, so auto-detection only runs when asked. It
- *    considers edge-mount connector ftypes and any component that deliberately
- *    carries a `cutout_aperture`. A part that mates from above
+ *  - **Auto placement** is **opt-in** (`autoCutouts: true`) and only considers
+ *    components that deliberately declare an aperture. A part that mates
+ *    from above
  *    (`insertion_direction: "from_above"`) opens the **lid**;
  *    otherwise the part must sit within `autoMaxEdgeDistanceMm` of a board edge
  *    and opens a **wall** (face from `insertion_direction` / inferred
- *    `cable_insertion_center`, else the nearest wall). Shape/size come from the
- *    component's embedded aperture profile, else its housing bbox as a rectangle
- *    (flagged `isFallback`). An explicit `<enclosurecutout for=X>` **suppresses**
- *    the auto cutout for X.
+ *    `cable_insertion_center`, else the nearest wall). Shape and size always come
+ *    from the declared aperture. Body/CAD bounds never invent an opening.
  *  - **Explicit** cutouts (the default path): `direction` (axis projection) beats
  *    `face`; a `face` of "auto"/unset infers from placement/insertion;
  *    `shape`/size default from the matched aperture, then the component extents.
@@ -119,6 +113,56 @@ const faceFromOffset = (from: XY, center: XY): Face | undefined => {
 	return dy > 0 ? "+y" : "-y";
 };
 
+const rotate = (point: XY, degrees: number): XY => {
+	const radians = (degrees * Math.PI) / 180;
+	const cos = Math.cos(radians);
+	const sin = Math.sin(radians);
+	return {
+		x: point.x * cos - point.y * sin,
+		y: point.x * sin + point.y * cos,
+	};
+};
+
+/**
+ * Merge a partial component-local aperture position over an inferred board
+ * point. Working in the local frame first keeps single-axis overrides correct
+ * when the component is rotated.
+ */
+const resolveApertureCenter = (
+	body: ComponentBody,
+	inferred: XY,
+	position: ResolvedAperture["position"],
+): XY => {
+	if (position?.x == null && position?.y == null) return inferred;
+	const frame = body.componentFrame ?? { origin: body.center, rotationDeg: 0 };
+	const inferredUnrotated = rotate(
+		{
+			x: inferred.x - frame.origin.x,
+			y: inferred.y - frame.origin.y,
+		},
+		-frame.rotationDeg,
+	);
+	const inferredLocal = {
+		x: inferredUnrotated.x,
+		y: frame.flipY ? -inferredUnrotated.y : inferredUnrotated.y,
+	};
+	const localOffset = {
+		x: position?.x ?? inferredLocal.x,
+		y: position?.y ?? inferredLocal.y,
+	};
+	const resolvedOffset = rotate(
+		{
+			x: localOffset.x,
+			y: frame.flipY ? -localOffset.y : localOffset.y,
+		},
+		frame.rotationDeg,
+	);
+	return {
+		x: frame.origin.x + resolvedOffset.x,
+		y: frame.origin.y + resolvedOffset.y,
+	};
+};
+
 /**
  * The face an edge/top-mount body's opening cuts: a `from_above` connector opens
  * the lid (no edge proximity needed); otherwise prefer footprint insertion
@@ -130,19 +174,17 @@ export const autoCutoutFace = (
 	b: ComponentBody,
 	bounds: Bounds,
 	rules: DesignRules = DEFAULT_DESIGN_RULES,
+	reachCenter: XY = b.cableInsertionCenter ?? b.center,
 ): Face | null => {
 	const fromDir = faceFromInsertionDirection(b.insertionDirection);
 	if (fromDir === "top") return "top"; // mates from above → open the lid
+	const directionCenter = b.cableInsertionCenter ?? b.center;
 	const face =
 		fromDir ??
-		(b.cableInsertionCenter
-			? faceFromOffset(b.cableInsertionCenter, b.center)
-			: undefined) ??
+		faceFromOffset(directionCenter, b.center) ??
 		nearestWall(b.center, bounds);
 	const bodyDistance = distanceFromBodyToFace(b, bounds, face);
-	const insertionDistance = b.cableInsertionCenter
-		? distanceToFace(b.cableInsertionCenter, bounds, face)
-		: Number.POSITIVE_INFINITY;
+	const insertionDistance = distanceToFace(reachCenter, bounds, face);
 	return Math.min(bodyDistance, insertionDistance) <=
 		rules.cutout.autoMaxEdgeDistanceMm
 		? face
@@ -205,7 +247,6 @@ export interface ResolvedCutout {
 	/** Opening center height above the PCB top surface (side faces only). */
 	zCenterAboveBoardMm: number;
 	/** True when no aperture profile matched and the housing bbox was used. */
-	isFallback?: boolean;
 }
 
 const isSide = (f: Face) => f !== "top" && f !== "bottom";
@@ -226,14 +267,20 @@ const FALLBACK_OPENING_MM = 6;
 /** Body extents used to fill aperture dims the profile leaves unspecified. */
 type BodyExtents = { lengthMm?: number; widthMm?: number; heightMm?: number };
 
-/**
- * Turn a matched aperture profile into final opening dimensions (margin
- * included), filling any unspecified rect/rounded extents from the body.
- */
+/** Component-local z converted to a signed offset from the PCB top surface. */
+const zCenterFromBoardTop = (
+	body: ComponentBody,
+	boardThicknessMm: number,
+	positionZ?: number,
+	bodyHeightMm: number = body.heightMm,
+): number => {
+	const localZ = positionZ ?? (body.zOffsetMm ?? 0) + bodyHeightMm / 2;
+	return body.side === "bottom" ? -boardThicknessMm - localZ : localZ;
+};
+
+/** Turn an explicit, fully dimensioned aperture into final opening dimensions. */
 const apertureToCutout = (
 	ap: ResolvedAperture,
-	face: Face,
-	body: BodyExtents,
 	marginOverride?: number,
 ): Pick<
 	ResolvedCutout,
@@ -241,22 +288,29 @@ const apertureToCutout = (
 > => {
 	const m = marginOverride ?? ap.marginMm;
 	if (ap.shape === "circle") {
-		const d = (ap.diameterMm ?? FALLBACK_OPENING_MM) + 2 * m;
+		if (ap.diameterMm == null)
+			throw new Error("[pcb-enclosure] circle aperture requires a diameter");
+		const d = ap.diameterMm + 2 * m;
 		return { shape: "circle", widthMm: d, heightMm: d };
 	}
 	if (ap.shape === "d_shape") {
-		const d = (ap.diameterMm ?? FALLBACK_OPENING_MM) + 2 * m;
+		if (ap.diameterMm == null)
+			throw new Error("[pcb-enclosure] d_shape aperture requires a diameter");
+		const d = ap.diameterMm + 2 * m;
 		return {
 			shape: "d_shape",
 			widthMm: d,
 			heightMm: d,
-			flatOffsetMm:
-				(ap.flatOffsetMm ?? (ap.diameterMm ?? FALLBACK_OPENING_MM) / 2) + m,
+			flatOffsetMm: (ap.flatOffsetMm ?? ap.diameterMm / 2) + m,
 		};
 	}
-	const def = sizeDefaults(face, body);
-	const w = (ap.widthMm ?? def.w ?? FALLBACK_OPENING_MM) + 2 * m;
-	const h = (ap.heightMm ?? def.h ?? FALLBACK_OPENING_MM) + 2 * m;
+	if (ap.widthMm == null || ap.heightMm == null) {
+		throw new Error(
+			`[pcb-enclosure] ${ap.shape} aperture requires width and height`,
+		);
+	}
+	const w = ap.widthMm + 2 * m;
+	const h = ap.heightMm + 2 * m;
 	if (ap.shape === "rounded_rect") {
 		return {
 			shape: "rounded_rect",
@@ -272,51 +326,37 @@ const apertureToCutout = (
 /** Auto cutout for one edge/top-mount component body (or null if not eligible). */
 const autoCutoutFor = (
 	b: ComponentBody,
-	bounds: Bounds,
+	features: EnclosureFeatures,
 	rules: DesignRules,
 ): ResolvedCutout | null => {
-	if (!b.ftype || (!EDGE_MOUNT_FTYPES.has(b.ftype) && !b.cutoutAperture))
-		return null;
-	const face = autoCutoutFace(b, bounds, rules);
-	if (!face) return null;
-	const center = b.cableInsertionCenter ?? b.center;
-	// aperture height only applies to a side wall; a lid/floor opening is planar
-	const zFor = (apZ?: number) => (isSide(face) ? (apZ ?? b.heightMm / 2) : 0);
+	if (!b.cutoutAperture) return null;
 	const ap = resolveCutoutAperture(b.cutoutAperture, rules);
-	if (ap) {
-		const dims = apertureToCutout(ap, face, b);
-		return {
-			id: b.id,
-			origin: "auto",
-			center,
-			face,
-			...dims,
-			zCenterAboveBoardMm: zFor(ap.zCenterAboveBoardMm),
-		};
-	}
-	// no profile matched: cut the housing bounding box as a plain rectangle
-	const s = sizeDefaults(face, b);
-	const m = rules.cutout.defaultMarginMm;
+	if (!ap) return null;
+	const inferredCenter = b.cableInsertionCenter ?? b.center;
+	const center = resolveApertureCenter(b, inferredCenter, ap.position);
+	const face = autoCutoutFace(b, features.bounds, rules, center);
+	if (!face) return null;
+	// aperture height only applies to a side wall; a lid/floor opening is planar
+	const zFor = (positionZ?: number) =>
+		isSide(face)
+			? zCenterFromBoardTop(b, features.boardThicknessMm, positionZ)
+			: 0;
+	const dims = apertureToCutout(ap);
 	return {
 		id: b.id,
 		origin: "auto",
 		center,
 		face,
-		shape: "rect",
-		widthMm: (s.w ?? FALLBACK_OPENING_MM) + 2 * m,
-		heightMm: (s.h ?? FALLBACK_OPENING_MM) + 2 * m,
-		zCenterAboveBoardMm: zFor(),
-		isFallback: true,
+		...dims,
+		zCenterAboveBoardMm: zFor(ap.position?.z),
 	};
 };
 
 /** Options for `resolveCutouts`. */
 export interface ResolveCutoutsOptions {
 	/**
-	 * Auto-detect openings from edge/top connectors. **Opt-in** (default false):
-	 * enclosures usually configure cutouts explicitly with
-	 * `<enclosurecutout for=... / at=...>` children, so set this true only for the
-	 * simple "just open the wall at my connectors" case.
+	 * Automatically place explicitly declared part apertures. This never infers
+	 * aperture existence, shape, or dimensions from a component body.
 	 */
 	autoCutouts?: boolean;
 	/** Injected manufacturing design rules (edge-distance gate, default margin). */
@@ -324,9 +364,8 @@ export interface ResolveCutoutsOptions {
 }
 
 /**
- * Resolve auto cutouts (opt-in, from detected edge/top connectors) + explicit
- * `<enclosurecutout>` children into final openings. An explicit child whose
- * `for` resolved to component X suppresses X's auto cutout.
+ * Resolve automatically placed declared apertures plus internal explicit
+ * operands into final openings.
  */
 export const resolveCutouts = (
 	features: EnclosureFeatures,
@@ -346,7 +385,7 @@ export const resolveCutouts = (
 	if (opts.autoCutouts === true) {
 		for (const b of features.componentBodies) {
 			if (explicitIds.has(b.id)) continue;
-			const auto = autoCutoutFor(b, features.bounds, rules);
+			const auto = autoCutoutFor(b, features, rules);
 			if (auto) out.push(auto);
 		}
 	}
@@ -354,12 +393,6 @@ export const resolveCutouts = (
 	for (const c of explicit) {
 		if (!c.at) continue; // unresolved: no `at`, and `for` matched nothing
 		const body = c.resolvedId ? bodyById.get(c.resolvedId) : undefined;
-		const face =
-			faceFromDirection(c.direction) ??
-			(c.face && c.face !== "auto" ? c.face : undefined) ??
-			(body ? autoCutoutFace(body, features.bounds, rules) : undefined) ??
-			inferFace(c.at, features.bounds, body?.ftype, rules);
-
 		const bodyExtents: BodyExtents = {
 			lengthMm: c.footprintLengthMm ?? body?.lengthMm,
 			widthMm: c.footprintWidthMm ?? body?.widthMm,
@@ -375,13 +408,22 @@ export const resolveCutouts = (
 				: body
 					? resolveCutoutAperture(body.cutoutAperture, rules)
 					: null;
+		const center =
+			body && ap ? resolveApertureCenter(body, c.at, ap.position) : c.at;
+		const face =
+			faceFromDirection(c.direction) ??
+			(c.face && c.face !== "auto" ? c.face : undefined) ??
+			(body
+				? autoCutoutFace(body, features.bounds, rules, center)
+				: undefined) ??
+			inferFace(center, features.bounds, body?.ftype, rules);
 
 		let resolved: Pick<
 			ResolvedCutout,
 			"shape" | "widthMm" | "heightMm" | "cornerRadiusMm" | "flatOffsetMm"
 		>;
 		if (ap) {
-			resolved = apertureToCutout(ap, face, bodyExtents, c.margin);
+			resolved = apertureToCutout(ap, c.margin);
 		} else {
 			const margin = c.margin ?? rules.cutout.defaultMarginMm;
 			const shape = c.shape === "circle" ? "circle" : "rect";
@@ -403,15 +445,21 @@ export const resolveCutouts = (
 		out.push({
 			id: c.resolvedId,
 			origin: "explicit",
-			center: c.at,
+			center,
 			face,
 			...resolved,
 			// a side opening resolved from a component defaults to the aperture
 			// height, else the body's vertical middle (brackets the body)
 			zCenterAboveBoardMm:
 				c.zCenterAboveBoard ??
-				ap?.zCenterAboveBoardMm ??
-				(isSide(face) && bodyHeightMm ? bodyHeightMm / 2 : 0),
+				(isSide(face) && body
+					? zCenterFromBoardTop(
+							body,
+							features.boardThicknessMm,
+							ap?.position?.z,
+							bodyHeightMm,
+						)
+					: 0),
 		});
 	}
 	return out;

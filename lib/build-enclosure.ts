@@ -26,10 +26,10 @@ export type MeasureBounds = (geom: any) => [number[], number[]];
 /**
  * Geometry helpers bound to a jscad implementation. Pass `@jscad/modeling` to
  * get a mesh for STL, or `jscad-planner`'s `jscadPlanner` to get a serializable
- * plan for `cad_component.model_jscad`. Positioning uses `translate` (not the
- * `center` option) so both implementations behave the same. The implementation
- * is **injected** so this module does not hard-depend on @jscad/modeling — the
- * plan path (used by the core `<enclosure>` component) loads no heavy CSG kernel.
+ * artifact plan. Positioning uses `translate` (not the `center` option) so both
+ * implementations behave the same. The implementation is **injected** so this
+ * module does not hard-depend on @jscad/modeling; the plan path used while
+ * collecting board output loads no heavy CSG kernel.
  */
 const mk = (jscad: any) => {
 	const { cuboid, cylinder } = jscad.primitives;
@@ -716,19 +716,40 @@ export const buildEnclosure = (
 				]
 			: [];
 
-	const outerW = boardW + 2 * cl + 2 * wall;
-	const outerH = boardH + 2 * cl + 2 * wall;
-	const innerW = boardW + 2 * cl;
-	const innerH = boardH + 2 * cl;
+	const minimumOuterW = boardW + 2 * cl + 2 * wall;
+	const minimumOuterH = boardH + 2 * cl + 2 * wall;
+	const resolveOuterDimension = (
+		prop: "width" | "height" | "depth",
+		requested: number | undefined,
+		minimum: number,
+	): number => {
+		if (requested == null) return minimum;
+		if (!Number.isFinite(requested) || requested < minimum) {
+			throw new Error(
+				`[pcb-enclosure] ${prop} ${requested}mm is too small; minimum is ${minimum.toFixed(2)}mm for the selected board and clearances`,
+			);
+		}
+		return requested;
+	};
+	const outerW = resolveOuterDimension("width", params.widthMm, minimumOuterW);
+	const outerH = resolveOuterDimension(
+		"height",
+		params.heightMm,
+		minimumOuterH,
+	);
+	const innerW = outerW - 2 * wall;
+	const innerH = outerH - 2 * wall;
 
-	const headroom = Math.max(
+	const minimumHeadroom = Math.max(
 		params.topHeadroomMm,
 		features.topComponentHeightMm + rules.headroomOverTallestMm,
 	);
 	const boardBottomZ = floorT + standoffH;
 	const boardTopZ = boardBottomZ + boardT;
-	const seamZ = boardTopZ + headroom;
-	const totalH = seamZ + lidT;
+	const minimumTotalH = boardTopZ + minimumHeadroom + lidT;
+	const totalH = resolveOuterDimension("depth", params.depthMm, minimumTotalH);
+	const seamZ = totalH - lidT;
+	const headroom = seamZ - boardTopZ;
 
 	const fr: SplitShellFrame = {
 		m,

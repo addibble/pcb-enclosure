@@ -1,4 +1,23 @@
 import { boardHeightMm, boardWidthMm } from "./prefab-board";
+import type { ApertureProfile } from "../lib/cutout-aperture";
+
+export const prefabBoardAperturesBySourceComponentId: Record<
+	string,
+	ApertureProfile
+> = {
+	src_j1: {
+		shape: "rect",
+		widthMm: 9,
+		heightMm: 8.5,
+		position: { z: 4.25 },
+	},
+	src_j2: {
+		shape: "rect",
+		widthMm: 8,
+		heightMm: 4,
+		position: { z: 2 },
+	},
+};
 
 const mount = (id: string, x: number, y: number) => ({
 	type: "pcb_hole",

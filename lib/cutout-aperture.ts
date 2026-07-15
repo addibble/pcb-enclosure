@@ -2,6 +2,13 @@ import { DEFAULT_DESIGN_RULES, type DesignRules } from "./design-rules";
 
 export type ApertureShape = "rect" | "rounded_rect" | "circle" | "d_shape";
 
+/** Aperture center in the owning component's local mounting frame. */
+export interface AperturePosition {
+	x?: number;
+	y?: number;
+	z?: number;
+}
+
 /** Nominal part-authored opening dimensions, in millimetres. */
 export interface ApertureProfile {
 	shape: ApertureShape;
@@ -10,7 +17,7 @@ export interface ApertureProfile {
 	diameterMm?: number;
 	cornerRadiusMm?: number;
 	flatOffsetMm?: number;
-	zCenterAboveBoardMm?: number;
+	position?: AperturePosition;
 	marginMm?: number;
 }
 
@@ -21,7 +28,7 @@ export interface ResolvedAperture {
 	diameterMm?: number;
 	cornerRadiusMm?: number;
 	flatOffsetMm?: number;
-	zCenterAboveBoardMm?: number;
+	position?: AperturePosition;
 	marginMm: number;
 }
 

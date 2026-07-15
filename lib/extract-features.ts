@@ -356,26 +356,14 @@ const farSideProjection = (
 	return v > 0 ? v : undefined;
 };
 
-const cutoutAperture = (src: El | undefined): ApertureProfile | undefined => {
-	const aperture = src?.cutout_aperture;
-	if (!aperture) return undefined;
-	return {
-		shape: aperture.shape,
-		widthMm: aperture.width_mm,
-		heightMm: aperture.height_mm,
-		diameterMm: aperture.diameter_mm,
-		cornerRadiusMm: aperture.corner_radius_mm,
-		flatOffsetMm: aperture.flat_offset_mm,
-		zCenterAboveBoardMm: aperture.z_center_above_board_mm,
-		marginMm: aperture.margin_mm,
-	};
-};
-
 /** Assemble one `ComponentBody`, or null if the component has no body. */
 const componentBody = (
 	comp: El,
 	index: ComponentIndex,
 	overrides: NonNullable<ExtractOptions["overrides"]>,
+	aperturesBySourceComponentId: NonNullable<
+		ExtractOptions["aperturesBySourceComponentId"]
+	>,
 	boardCenter: XY,
 	h: BodyHeuristics,
 ): ComponentBody | null => {
@@ -390,18 +378,25 @@ const componentBody = (
 	const name: string = src?.name ?? comp.pcb_component_id;
 	const ov = overrides[name] ?? {};
 	const throughHole = pads.some((p) => p.type === "pcb_plated_hole");
+	const center = bodyCenter(comp, cad, pb, boardCenter);
+	const side = bodySide(comp, cad);
 
 	return {
 		id: name,
-		center: bodyCenter(comp, cad, pb, boardCenter),
+		center,
+		componentFrame: {
+			origin: xyOf(comp.anchor_position) ?? xyOf(comp.center) ?? center,
+			rotationDeg: asNumber(comp.rotation) ?? 0,
+			flipY: side === "bottom",
+		},
 		lengthMm: extents.lengthMm,
 		widthMm: extents.widthMm,
 		heightMm: bodyHeight(ov, cad, ftype, h),
-		side: bodySide(comp, cad),
+		side,
 		farSideProjectionMm: farSideProjection(ov, throughHole, h),
 		zOffsetMm: ov.zOffsetMm,
 		ftype,
-		cutoutAperture: cutoutAperture(src),
+		cutoutAperture: aperturesBySourceComponentId[comp.source_component_id],
 		insertionDirection: comp.insertion_direction,
 		cableInsertionCenter: xyOf(comp.cable_insertion_center),
 	};
@@ -418,12 +413,20 @@ const extractComponentBodies = (
 } => {
 	const index = indexComponents(els);
 	const overrides = opts.overrides ?? {};
+	const aperturesBySourceComponentId = opts.aperturesBySourceComponentId ?? {};
 	const h = resolveBodyHeuristics(opts);
 	const componentBodies: ComponentBody[] = [];
 	let topComponentHeightMm = 0;
 	let bottomComponentHeightMm = 0;
 	for (const comp of by(els, "pcb_component")) {
-		const body = componentBody(comp, index, overrides, boardCenter, h);
+		const body = componentBody(
+			comp,
+			index,
+			overrides,
+			aperturesBySourceComponentId,
+			boardCenter,
+			h,
+		);
 		if (!body) continue;
 		componentBodies.push(body);
 		// the body rises from its mounted surface; through-hole leads / clips / pegs
@@ -458,6 +461,8 @@ export interface ExtractOptions {
 	pcbBoardId?: string;
 	/** Alternate board selector for subcircuit-authored boards. */
 	subcircuitId?: string;
+	/** Ephemeral part apertures collected from imported enclosure TSX. */
+	aperturesBySourceComponentId?: Record<string, ApertureProfile>;
 	/**
 	 * Per-component body overrides keyed by source component name (e.g. "J1").
 	 * Use this to set real body heights until every footprint carries a sized

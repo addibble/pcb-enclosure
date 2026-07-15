@@ -6,13 +6,13 @@ import type { Face, XY } from "./types";
  *
  * This file holds the shared enums (face / direction) and the resolved *operand*
  * shape a `<enclosurecutout>` lowers to. The per-tag zod prop schemas and the
- * component classes that consume them land with the `<enclosure>` element; the
- * analysis + geometry layers only need the operand type below. Mounting-hardware
+ * package-private collectors that consume them feed the artifact renderer; the
+ * analysis and geometry layers only need the operand type below. Mounting-hardware
  * selection is a catalog key (or inline spec) validated against
  * `MountingHardwareCatalog` — see `lib/mounting-hardware-catalog.ts`.
  */
 
-// --- shared enums (used by the child prop schemas + <enclosure> props) --------
+// --- shared enums (used by package-private explicit operand adapters) ----------
 /** A mounting-stack reference: a catalog key or an inline stack spec. */
 export const mountingStackRef = z.union([z.string(), z.record(z.any())]);
 export const faceEnum = z.enum(["top", "bottom", "+x", "-x", "+y", "-y"]);

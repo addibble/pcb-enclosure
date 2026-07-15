@@ -50,6 +50,11 @@ test("injected rules gate auto cutouts (autoMaxEdgeDistanceMm)", () => {
 		heightMm: 5,
 		ftype: "simple_connector",
 		insertionDirection: "from_right",
+		cutoutAperture: {
+			shape: "rect",
+			widthMm: 6,
+			heightMm: 5,
+		},
 	};
 	// default reach is 8mm → the body remains unreachable → no auto cutout
 	expect(

@@ -9,11 +9,9 @@ import { EnclosurePlacementSolver } from "../lib/placement-solver";
 import { DEFAULT_PARAMS, type EnclosureFeatures } from "../lib/types";
 
 /**
- * The `<enclosure>` element emits each part as a `cad_component.model_jscad`
- * **plan** (built with `jscad-planner`). The tscircuit 3D viewer and runframe's
- * STL exporter render/export that plan via `executeJscadOperations(@jscad/
- * modeling, plan)`. This test exercises that exact path — plan → mesh → STL —
- * so we know the element's output is viewable and exportable.
+ * The artifact renderer builds each part as a `jscad-planner` plan. Preview and
+ * manufacturing exporters replay it through @jscad/modeling. This exercises the
+ * exact plan → mesh → STL path.
  */
 const features: EnclosureFeatures = {
 	outline: [
@@ -54,7 +52,7 @@ test("enclosure plan parts execute to watertight meshes and export to STL", () =
 	});
 	solver.solve();
 
-	// build with the plan implementation, exactly like the <enclosure> element
+	// build with the serializable plan implementation used by the artifact path
 	const model = buildEnclosure(
 		features,
 		solver.getOutput(),
@@ -65,7 +63,7 @@ test("enclosure plan parts execute to watertight meshes and export to STL", () =
 	expect(model.parts.map((p) => p.id).sort()).toEqual(["base", "lid"]);
 
 	for (const part of model.parts) {
-		// model_jscad is a serializable plan (a plain object, not a Geom3)
+		// The artifact plan is a plain object, not a rendered Geom3.
 		expect(part.geom).toBeInstanceOf(Object);
 		expect("polygons" in (part.geom as object)).toBe(false);
 		// viewer/exporter path: replay the plan through @jscad/modeling

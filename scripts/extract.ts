@@ -7,10 +7,16 @@
 import { readFileSync } from "node:fs";
 import { resolveCutouts } from "../lib/cutouts";
 import { extractEnclosureFeatures } from "../lib/extract-features";
+import { prefabBoardAperturesBySourceComponentId } from "../examples/prefab-board-circuit-json";
 
 const path = process.argv[2] ?? "out/prefab-board.circuit.json";
 const cj = JSON.parse(readFileSync(path, "utf8"));
-const f = extractEnclosureFeatures(cj);
+const f = extractEnclosureFeatures(cj, {
+	aperturesBySourceComponentId:
+		path === "out/prefab-board.circuit.json"
+			? prefabBoardAperturesBySourceComponentId
+			: undefined,
+});
 
 console.log("file:", path);
 console.log(
@@ -30,7 +36,7 @@ const cutouts = resolveCutouts(f, [], { autoCutouts: true }); // opt-in demo
 console.log("cutouts:", cutouts.length);
 for (const c of cutouts)
 	console.log(
-		`  • ${c.id} [${c.origin}] face=${c.face} ${c.shape} ${c.widthMm.toFixed(1)}x${c.heightMm.toFixed(1)}  @(${c.center.x.toFixed(1)},${c.center.y.toFixed(1)})${c.isFallback ? " (bbox fallback)" : ""}`,
+		`  • ${c.id} [${c.origin}] face=${c.face} ${c.shape} ${c.widthMm.toFixed(1)}x${c.heightMm.toFixed(1)}  @(${c.center.x.toFixed(1)},${c.center.y.toFixed(1)})`,
 	);
 console.log("top component height:", f.topComponentHeightMm.toFixed(1), "mm");
 console.log(

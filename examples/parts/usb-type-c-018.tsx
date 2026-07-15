@@ -1,4 +1,5 @@
 import { Fragment, type ReactNode } from "react";
+import { enclosure } from "../../lib/index";
 
 const pinLabels = {
 	pin1: ["pin1"],
@@ -168,12 +169,11 @@ export const UsbTypeC018 = ({
 			pcbRotation={pcbRotation}
 		>
 			{children ?? (
-				<cutoutaperture
-					shape="rounded_rect"
-					widthMm={9.2}
-					heightMm={3.3}
-					cornerRadiusMm={1.65}
-					zCenterAboveBoardMm={1.65}
+				<enclosure.cutoutaperture
+					shape="pill"
+					width={9.2}
+					height={3.3}
+					position={{ z: 1.65 }}
 				/>
 			)}
 		</connector>

@@ -7,7 +7,7 @@ const usbCProfile = {
 	widthMm: 9.2,
 	heightMm: 3.3,
 	cornerRadiusMm: 1.65,
-	zCenterAboveBoardMm: 1.65,
+	position: { z: 1.65 },
 };
 
 const features = (bodies: ComponentBody[]): EnclosureFeatures => ({
@@ -48,7 +48,6 @@ test("a USB-C connector gets a rounded_rect aperture, not a body-sized rect", ()
 	expect(c.heightMm).toBeCloseTo(3.3 + 2 * 0.5);
 	// vertical opening sits at the aperture height, not half the housing
 	expect(c.zCenterAboveBoardMm).toBeCloseTo(1.65);
-	expect(c.isFallback).toBeUndefined();
 });
 
 test("embedded aperture metadata defines an auto cutout", () => {
@@ -63,7 +62,7 @@ test("embedded aperture metadata defines an auto cutout", () => {
 		cutoutAperture: {
 			shape: "circle",
 			diameterMm: 8,
-			zCenterAboveBoardMm: 5.5,
+			position: { z: 5.5 },
 		},
 	};
 	const [cutout] = resolveCutouts(features([connector]), [], {
@@ -73,7 +72,93 @@ test("embedded aperture metadata defines an auto cutout", () => {
 	expect(cutout.shape).toBe("circle");
 	expect(cutout.widthMm).toBe(9);
 	expect(cutout.zCenterAboveBoardMm).toBe(5.5);
-	expect(cutout.isFallback).toBeUndefined();
+});
+
+test("partial aperture positions override component-local axes after rotation", () => {
+	const connector: ComponentBody = {
+		id: "J_LOCAL",
+		center: { x: 0, y: 16 },
+		componentFrame: {
+			origin: { x: 0, y: 16 },
+			rotationDeg: 90,
+		},
+		lengthMm: 8,
+		widthMm: 5,
+		heightMm: 6,
+		ftype: "simple_connector",
+		insertionDirection: "from_back",
+		cableInsertionCenter: { x: 0, y: 20.3 },
+		cutoutAperture: {
+			shape: "circle",
+			diameterMm: 5,
+			position: { y: 2, z: 3 },
+		},
+	};
+	const [cutout] = resolveCutouts(features([connector]), [], {
+		autoCutouts: true,
+	});
+
+	// The inferred local x is retained while local y=2 rotates onto board -x.
+	expect(cutout.center.x).toBeCloseTo(-2);
+	expect(cutout.center.y).toBeCloseTo(20.3);
+	expect(cutout.zCenterAboveBoardMm).toBe(3);
+});
+
+test("aperture offsets do not override wall selection", () => {
+	const connector: ComponentBody = {
+		id: "J_OFFSET",
+		center: { x: 27, y: 0 },
+		componentFrame: {
+			origin: { x: 27, y: 0 },
+			rotationDeg: 0,
+		},
+		lengthMm: 6,
+		widthMm: 5,
+		heightMm: 4,
+		ftype: "simple_connector",
+		cutoutAperture: {
+			shape: "circle",
+			diameterMm: 4,
+			position: { y: 1 },
+		},
+	};
+
+	const [cutout] = resolveCutouts(features([connector]), [], {
+		autoCutouts: true,
+	});
+
+	expect(cutout.face).toBe("+x");
+	expect(cutout.center).toEqual({ x: 27, y: 1 });
+});
+
+test("component-local z points away from the owning PCB surface", () => {
+	const connector: ComponentBody = {
+		id: "J_BOTTOM",
+		center: { x: 26, y: 0 },
+		componentFrame: {
+			origin: { x: 26, y: 0 },
+			rotationDeg: 90,
+			flipY: true,
+		},
+		lengthMm: 8,
+		widthMm: 5,
+		heightMm: 6,
+		side: "bottom",
+		ftype: "simple_connector",
+		insertionDirection: "from_right",
+		cutoutAperture: {
+			shape: "circle",
+			diameterMm: 5,
+			position: { x: 2, y: 3, z: 2 },
+		},
+	};
+	const [cutout] = resolveCutouts(features([connector]), [], {
+		autoCutouts: true,
+	});
+
+	expect(cutout.center.x).toBeCloseTo(29);
+	expect(cutout.center.y).toBeCloseTo(2);
+	expect(cutout.zCenterAboveBoardMm).toBe(-3.6);
 });
 
 test("cable_insertion_center picks the wall and centers the opening along it", () => {
@@ -86,6 +171,7 @@ test("cable_insertion_center picks the wall and centers the opening along it", (
 		heightMm: 6,
 		ftype: "simple_connector",
 		cableInsertionCenter: { x: 3, y: 21 },
+		cutoutAperture: usbCProfile,
 	};
 	const [c] = resolveCutouts(features([conn]), [], { autoCutouts: true });
 	expect(c.face).toBe("+y");
@@ -101,6 +187,7 @@ test("cable insertion reach can open a wall even when the body center is farther
 		heightMm: 4,
 		ftype: "simple_connector",
 		cableInsertionCenter: { x: 0, y: 20.3 },
+		cutoutAperture: usbCProfile,
 	};
 	const [cutout] = resolveCutouts(features([flagConnector]), [], {
 		autoCutouts: true,
@@ -118,6 +205,7 @@ test("model body extent can reach a wall when the component center is farther in
 		heightMm: 6,
 		ftype: "simple_connector",
 		insertionDirection: "from_right",
+		cutoutAperture: usbCProfile,
 	};
 
 	expect(
@@ -125,7 +213,7 @@ test("model body extent can reach a wall when the component center is farther in
 	).toHaveLength(1);
 });
 
-test("an unmatched connector falls back to a bbox rectangle, flagged isFallback", () => {
+test("a connector without an aperture never gets an invented opening", () => {
 	const generic: ComponentBody = {
 		id: "J3",
 		center: { x: -27, y: 0 },
@@ -135,11 +223,26 @@ test("an unmatched connector falls back to a bbox rectangle, flagged isFallback"
 		ftype: "simple_connector",
 		insertionDirection: "from_left",
 	};
-	const [c] = resolveCutouts(features([generic]), [], { autoCutouts: true });
-	expect(c.face).toBe("-x");
-	expect(c.shape).toBe("rect");
-	expect(c.isFallback).toBe(true);
-	expect(c.origin).toBe("auto");
+	expect(
+		resolveCutouts(features([generic]), [], { autoCutouts: true }),
+	).toHaveLength(0);
+});
+
+test("an incomplete declared aperture surfaces an error instead of using body bounds", () => {
+	const incomplete: ComponentBody = {
+		id: "J_INCOMPLETE",
+		center: { x: -27, y: 0 },
+		lengthMm: 4,
+		widthMm: 6,
+		heightMm: 5,
+		ftype: "simple_connector",
+		insertionDirection: "from_left",
+		cutoutAperture: { shape: "rect" },
+	};
+
+	expect(() =>
+		resolveCutouts(features([incomplete]), [], { autoCutouts: true }),
+	).toThrow(/rect aperture requires width and height/);
 });
 
 test("a from_above connector auto-cuts the lid, even mid-board", () => {
@@ -187,6 +290,7 @@ test("auto cutouts are opt-in: off by default, on with autoCutouts:true", () => 
 		heightMm: 3.2,
 		ftype: "simple_connector",
 		insertionDirection: "from_right",
+		cutoutAperture: usbCProfile,
 	};
 	// default: no auto detection
 	expect(resolveCutouts(features([edge]))).toHaveLength(0);
@@ -217,6 +321,7 @@ test("auto cutouts require the component to be near the selected wall", () => {
 		heightMm: 4,
 		ftype: "simple_connector",
 		insertionDirection: "from_left",
+		cutoutAperture: usbCProfile,
 	};
 	expect(
 		resolveCutouts(features([mismatched]), [], { autoCutouts: true }),
@@ -232,6 +337,7 @@ test("front/back insertion directions follow the face coordinate convention", ()
 		heightMm: 3,
 		ftype: "simple_connector",
 		insertionDirection: "from_front",
+		cutoutAperture: usbCProfile,
 	};
 	const back: ComponentBody = {
 		...front,

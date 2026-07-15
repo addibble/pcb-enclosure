@@ -7,52 +7,34 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import * as modeling from "@jscad/modeling";
 import { primitives } from "@jscad/modeling";
 import measureBoundingBox from "@jscad/modeling/src/measurements/measureBoundingBox";
-import { buildEnclosure } from "../lib/build-enclosure";
 import {
 	checkAssemblyCollisions,
 	checkInsertionCollisions,
 } from "../lib/assembly-check";
-import { extractEnclosureFeatures } from "../lib/extract-features";
 import { toStl } from "../lib/export";
-import { EnclosurePlacementSolver } from "../lib/placement-solver";
-import { DEFAULT_PARAMS } from "../lib/types";
+import { renderEnclosureFromCircuitJson } from "../lib/render-enclosure";
 import { viewerHtml, type ViewerLayer } from "../lib/viewer-html";
+import { prefabBoardAperturesBySourceComponentId } from "../examples/prefab-board-circuit-json";
 
 const path = process.argv[2] ?? "out/prefab-board.circuit.json";
 
-const f = extractEnclosureFeatures(JSON.parse(readFileSync(path, "utf8")));
-const obstacles = f.componentBodies.map((b) => ({
-	id: b.id,
-	cx: b.center.x,
-	cy: b.center.y,
-	w: b.lengthMm,
-	h: b.widthMm,
-}));
-const solver = new EnclosurePlacementSolver({
-	obstacles,
-	mountPoints: f.mountPoints.map((m) => ({
-		center: m.center,
-		pcbHoleDiameterMm: m.pcbHoleDiameterMm,
-	})),
-	boardBounds: f.bounds,
-	anchor: DEFAULT_PARAMS.anchor,
-	clearanceMm: 1,
-	cornerFasteners: true,
-	cornerInsetMm: DEFAULT_PARAMS.cornerStandoffInsetMm,
-});
-solver.solve();
-
-// auto cutouts are opt-in; enable them here so the demo STL shows the
-// connectors' wall openings (real designs usually place explicit cutouts).
-const params = { ...DEFAULT_PARAMS, autoCutouts: true };
-const model = buildEnclosure(
-	f,
-	solver.getOutput(),
-	params,
-	[],
-	modeling,
-	measureBoundingBox,
+const rendered = renderEnclosureFromCircuitJson(
+	JSON.parse(readFileSync(path, "utf8")),
+	{ boardRef: "board", autoCutouts: true },
+	{
+		jscad: modeling,
+		measureBounds: measureBoundingBox,
+		extract: {
+			aperturesBySourceComponentId:
+				process.argv[2] == null
+					? prefabBoardAperturesBySourceComponentId
+					: undefined,
+		},
+	},
 );
+const f = rendered.features;
+const params = rendered.params;
+const model = rendered.model;
 
 // part appearance + explode direction (content Z-up frame)
 const STYLE: Record<
