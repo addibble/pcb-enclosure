@@ -31,18 +31,22 @@ the board has rendered.
 This repository currently depends on coordinated changes that have **not all
 been released by upstream tscircuit packages**. A checkout using only published
 package versions is not sufficient. To build and run the current implementation,
-use these addibble-owned branches together:
+use these coordinated branches together (addibble-owned forks where a fork
+exists, otherwise local tscircuit checkouts):
 
 | Repository branch | Required capability |
 | --- | --- |
-| Local `core:rfc/parametric-enclosures` | Generic external React host elements, mounting-origin preservation, and CAD model size metadata. |
+| [`addibble/core:rfc/parametric-enclosures`](https://github.com/addibble/core/tree/rfc/parametric-enclosures) | Generic external React host elements and `pcb_component.anchor_position` preservation through isolation/cached inflation. |
 | Local `circuit-json-util:rfc/parametric-enclosures` | Transform `pcb_component.anchor_position` with component/group layout. |
 | [`@tscircuit/props@0.0.580`](https://github.com/tscircuit/props/releases/tag/v0.0.580) | Merged `enclosure.fdm.box` and `enclosure.cutoutaperture` contracts from [#733](https://github.com/tscircuit/props/pull/733) and [#732](https://github.com/tscircuit/props/pull/732). |
 | [`addibble/infer-cable-insertion-point:fix/explicit-insertion-direction`](https://github.com/addibble/infer-cable-insertion-point/tree/fix/explicit-insertion-direction) | Explicit mating direction takes precedence over geometry guessing. |
-| [`addibble/eval:enclosure-support`](https://github.com/addibble/eval/tree/enclosure-support) | Optional preview-artifact protocol, runtime props schemas, and bundled JSCAD/GLB modules. |
-| [`addibble/runframe:enclosure-support`](https://github.com/addibble/runframe/tree/enclosure-support) | Blob-backed enclosure GLB artifacts composed only into the CAD preview. |
-| [`addibble/3d-viewer:enclosure-support`](https://github.com/addibble/3d-viewer/tree/enclosure-support) | GLB rendering plus the current enclosure-viewer compatibility work. |
+| [`addibble/eval:rfc/parametric-enclosures`](https://github.com/addibble/eval/tree/rfc/parametric-enclosures) | Optional preview-artifact protocol, runtime props schemas, and bundled JSCAD/GLB modules. |
+| [`addibble/runframe:rfc/parametric-enclosures`](https://github.com/addibble/runframe/tree/rfc/parametric-enclosures) | Blob-backed enclosure GLB artifacts composed only into the CAD preview. |
+| Local `cli:rfc/parametric-enclosures` | Carry preview artifacts into combined GLB and PoppyGL PNG outputs, resilient to preview failures. |
 | [`addibble/jscad-electronics:fix/connected-right-angle-pinrow`](https://github.com/addibble/jscad-electronics/tree/fix/connected-right-angle-pinrow) | Correct connected geometry for inverted right-angle pin rows. |
+
+`3d-viewer` needs no enclosure patch; it renders the preview GLB through its
+released `cad_component.model_glb_url` support.
 
 The local development setup uses these repositories as sibling checkouts and
 links their builds into the dependency graph. See

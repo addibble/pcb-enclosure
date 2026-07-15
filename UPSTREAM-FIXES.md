@@ -121,12 +121,6 @@ Core therefore initializes the already-standard
 
 No new Circuit JSON field is introduced.
 
-### CAD size
-
-The existing core enclosure branch also preserves `cadModel.size` on
-`cad_component.size`. Keep that fix only if it is not already present on the
-current upstream base; component body reach and height validation use it.
-
 ## 3. `circuit-json-util`: transform mounting origins
 
 **File:** `lib/transform-soup-elements.ts`
