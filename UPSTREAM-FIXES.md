@@ -44,7 +44,6 @@ of the current design.
 | [`tscircuit/circuit-json-to-gltf#170`](https://github.com/tscircuit/circuit-json-to-gltf/pull/170) | PR #170 | Execute serialized plans from the existing `cad_component.model_jscad` field. |
 | [`addibble/runframe`](https://github.com/addibble/runframe/tree/rfc/parametric-enclosures) | `rfc/parametric-enclosures` | Render canonical Circuit JSON directly; remove the old blob-artifact bridge. |
 | [`addibble/cli`](https://github.com/addibble/cli/tree/rfc/parametric-enclosures) | `rfc/parametric-enclosures` | Use canonical Circuit JSON for sequential/parallel GLB, PNG, GLTF, and static outputs. |
-| [`addibble/circuit-json-util`](https://github.com/addibble/circuit-json-util/tree/rfc/parametric-enclosures) | `rfc/parametric-enclosures` | Reverts the superseded `anchor_position` prototype; no enclosure-specific utility change remains. |
 | `3d-viewer` | No enclosure-specific patch required | Render `cad_component.model_jscad` through existing CAD support. |
 
 ## 1. `props`: authoring contracts
