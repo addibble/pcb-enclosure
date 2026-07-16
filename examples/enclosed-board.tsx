@@ -1,11 +1,11 @@
-import { enclosure } from "../lib/index";
+import { assembly, enclosure } from "../lib/index";
 
 /**
  * A board that grows its own case: drop an `<enclosure.fdm.box />` beside the
  * `<board />` and `tsci dev` / the GUI renders a base + lid.
  */
 export default () => (
-	<group>
+	<assembly.device name="enclosed-board">
 		<board name="B1" width="40mm" height="30mm">
 			<hole pcbX={-16} pcbY={-11} diameter="2.2mm" />
 			<hole pcbX={16} pcbY={-11} diameter="2.2mm" />
@@ -21,5 +21,5 @@ export default () => (
 			standoffHeight="4mm"
 			autoCutouts
 		/>
-	</group>
+	</assembly.device>
 );

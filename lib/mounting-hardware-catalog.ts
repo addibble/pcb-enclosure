@@ -1,5 +1,5 @@
+import { length } from "circuit-json";
 import { DEFAULT_DESIGN_RULES, type DesignRules } from "./design-rules";
-import { toMm } from "./units";
 
 /**
  * Data-driven PCB-mounting hardware catalog.
@@ -27,7 +27,7 @@ import { toMm } from "./units";
 /** A length in millimetres, or a unit string (`"4mm"`, `"0.1in"`, ...). */
 export type LengthValue = number | string;
 
-const mm = (v: LengthValue): number => toMm(v, Number.NaN);
+const mm = (v: LengthValue): number => length.parse(v);
 const optMm = (v: LengthValue | undefined): number | undefined =>
 	v == null ? undefined : mm(v);
 

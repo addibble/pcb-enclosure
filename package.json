@@ -24,6 +24,7 @@
 	},
 	"dependencies": {
 		"@jscad/modeling": "^2.13.0",
+		"jscad-planner": "^0.0.14",
 		"jscad-to-gltf": "^0.0.5",
 		"zod": "^3.25.67"
 	},
@@ -45,7 +46,6 @@
 		"@types/bun": "^1.2.16",
 		"@types/react": "^19.1.8",
 		"circuit-json": "^0.0.448",
-		"jscad-planner": "^0.0.14",
 		"poppygl": "^0.0.24",
 		"react": "^19.1.0",
 		"tscircuit": "0.0.2032"

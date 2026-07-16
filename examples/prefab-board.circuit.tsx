@@ -1,4 +1,4 @@
-import { enclosure } from "../lib/index";
+import { assembly, enclosure } from "../lib/index";
 import { Dc0055a20Smt } from "./parts/dc-005-5a-2-0-smt";
 import { MicroXnj } from "./parts/micro-xnj";
 import { Pj320d } from "./parts/pj-320d";
@@ -9,7 +9,7 @@ import { UsbTypeC018 } from "./parts/usb-type-c-018";
 import { boardHeightMm, boardWidthMm, PrefabBoard } from "./prefab-board";
 
 export default () => (
-	<group name="prefab-board-enclosure">
+	<assembly.device name="prefab-board-enclosure">
 		<PrefabBoard>
 			<UsbTypeC018 name="J1" pcbX={-18} pcbY={-boardHeightMm / 2 + 5} />
 			<TypeC14pCc26
@@ -40,5 +40,5 @@ export default () => (
 			<SmaKwe name="J7" pcbX={-boardWidthMm / 2 + 4} pcbY={-12} />
 		</PrefabBoard>
 		<enclosure.fdm.box name="EN1" boardRef=".B1" autoCutouts />
-	</group>
+	</assembly.device>
 );

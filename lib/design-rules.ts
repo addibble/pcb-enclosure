@@ -57,17 +57,6 @@ export interface DesignRules {
 		 */
 		cornerCoverageRadiusFactor: number;
 	};
-	drc: {
-		/** Below this gap to a screw channel / column, assembly is unreliable. */
-		minClearanceMm: number;
-		/**
-		 * Axial overlap under this is a face-to-face touch (a column resting on
-		 * the PCB top), not an intrusion — the classic false positive.
-		 */
-		touchToleranceMm: number;
-		/** A body must poke past the cavity by more than this to flag a wall hit. */
-		containmentSlopMm: number;
-	};
 	component: {
 		/**
 		 * Default projection of through-hole leads/solder tails past the far PCB
@@ -76,6 +65,8 @@ export interface DesignRules {
 		 * (keyswitch clips) is set per-part via `ExtractOptions.overrides`.
 		 */
 		throughHoleLeadProjectionMm: number;
+		/** Clearance below bottom-side bodies and far-side projections. */
+		bottomClearanceMm: number;
 	};
 	/** Headroom kept above the tallest top-side component when unconstrained. */
 	headroomOverTallestMm: number;
@@ -95,8 +86,10 @@ export const DEFAULT_DESIGN_RULES: DesignRules = {
 		earPadMm: 2,
 		cornerCoverageRadiusFactor: 2,
 	},
-	drc: { minClearanceMm: 0.5, touchToleranceMm: 0.05, containmentSlopMm: 0.3 },
-	component: { throughHoleLeadProjectionMm: 2.5 },
+	component: {
+		throughHoleLeadProjectionMm: 2.5,
+		bottomClearanceMm: 0.5,
+	},
 	headroomOverTallestMm: 2,
 	cutOvershootMm: 0.2,
 };

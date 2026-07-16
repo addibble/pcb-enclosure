@@ -7,10 +7,6 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import * as modeling from "@jscad/modeling";
 import { primitives } from "@jscad/modeling";
 import measureBoundingBox from "@jscad/modeling/src/measurements/measureBoundingBox";
-import {
-	checkAssemblyCollisions,
-	checkInsertionCollisions,
-} from "../lib/assembly-check";
 import { toStl } from "../lib/export";
 import { renderEnclosureFromCircuitJson } from "../lib/render-enclosure";
 import { viewerHtml, type ViewerLayer } from "../lib/viewer-html";
@@ -33,7 +29,6 @@ const rendered = renderEnclosureFromCircuitJson(
 	},
 );
 const f = rendered.features;
-const params = rendered.params;
 const model = rendered.model;
 
 // part appearance + explode direction (content Z-up frame)
@@ -114,32 +109,6 @@ if (model.bomItems.length) {
 	for (const line of lines.values())
 		console.log(
 			`  ${line.qty}× ${line.displayValue}${line.mpn ? ` [${line.mpn}]` : line.generic ? " [generic]" : ""}`,
-		);
-}
-
-// Assembled-collision check (assembly DRC) — seated state
-const collisions = checkAssemblyCollisions(model, f);
-if (collisions.length === 0) {
-	console.log("✓ assembly check (seated): no collisions");
-} else {
-	console.log(`✗ assembly check (seated): ${collisions.length} collision(s)`);
-	for (const c of collisions)
-		console.log(
-			`  ✗ ${c.partId} ↔ ${c.against}  (${c.overlapMm3.toFixed(1)} mm³)`,
-		);
-}
-
-// Swept-insertion check — can the board be placed (dropped in) at all?
-const insertion = checkInsertionCollisions(model, f, params);
-if (insertion.length === 0) {
-	console.log("✓ insertion check (placement travel): clear");
-} else {
-	console.log(
-		`✗ insertion check (placement travel): ${insertion.length} collision(s)`,
-	);
-	for (const c of insertion)
-		console.log(
-			`  ✗ ${c.partId} ↔ ${c.against}  (${c.overlapMm3.toFixed(1)} mm³)`,
 		);
 }
 

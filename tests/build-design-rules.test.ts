@@ -2,8 +2,6 @@ import { expect, test } from "bun:test";
 import * as modeling from "@jscad/modeling";
 import measureBoundingBox from "@jscad/modeling/src/measurements/measureBoundingBox";
 import { buildEnclosure } from "../lib/build-enclosure";
-import { checkAssemblyCollisions } from "../lib/assembly-check";
-import { checkEnclosureAssembly } from "../lib/enclosure-drc";
 import { DEFAULT_DESIGN_RULES } from "../lib/design-rules";
 import type { EnclosurePlacementOutput } from "../lib/placement-solver";
 import { DEFAULT_PARAMS, type EnclosureFeatures } from "../lib/types";
@@ -83,42 +81,9 @@ test("buildEnclosure raises standoff height for bottom-side clearance", () => {
 	expect(model.meta.boardBottomZ).toBeCloseTo(
 		DEFAULT_PARAMS.floorThicknessMm +
 			5 +
-			DEFAULT_DESIGN_RULES.drc.minClearanceMm,
+			DEFAULT_DESIGN_RULES.component.bottomClearanceMm,
 	);
 	expect(model.warnings.some((w) => w.includes("standoffHeight raised"))).toBe(
 		true,
 	);
-	expect(checkAssemblyCollisions(model, bottomFeatures)).toHaveLength(0);
-	expect(checkEnclosureAssembly(model, bottomFeatures)).toHaveLength(0);
-});
-
-test("buildEnclosure exposes the lid lip to analytic DRC", () => {
-	const edgeFeatures: EnclosureFeatures = {
-		...features,
-		componentBodies: [
-			{
-				id: "EDGE_TALL",
-				center: { x: 24, y: 0 },
-				lengthMm: 4,
-				widthMm: 4,
-				heightMm: 12,
-			},
-		],
-		topComponentHeightMm: 12,
-	};
-	const model = buildEnclosure(
-		edgeFeatures,
-		noPlacement,
-		{ ...DEFAULT_PARAMS, topHeadroomMm: 0, lidLipDepthMm: 4 },
-		[],
-		modeling,
-		measureBoundingBox,
-	);
-
-	expect(model.obstacles?.some((o) => o.kind === "lid lip")).toBe(true);
-	expect(
-		checkEnclosureAssembly(model, edgeFeatures).some(
-			(c) => c.against === "EDGE_TALL" && c.feature === "lid lip",
-		),
-	).toBe(true);
 });

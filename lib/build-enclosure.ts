@@ -10,13 +10,7 @@ import {
 	type ResolvedMountingHardware,
 } from "./mounting-hardware-catalog";
 import { screwHoleCut } from "./hole-finish";
-import type {
-	DrcObstacle,
-	EnclosureFeatures,
-	EnclosureParams,
-	Face,
-	XY,
-} from "./types";
+import type { EnclosureFeatures, EnclosureParams, Face, XY } from "./types";
 import { DEFAULT_PARAMS } from "./types";
 import type { EnclosurePlacementOutput, PlacedPost } from "./placement-solver";
 
@@ -108,17 +102,8 @@ export interface EnclosureModel {
 	bomItems: HardwareBomItem[];
 	/** Visible purchased hardware rendered in assembled/exploded enclosure views. */
 	hardware: EnclosureHardwareInstance[];
-	/** Components intentionally passing through a resolved enclosure aperture. */
-	cutoutComponentIds?: string[];
 	/** PCB placement for the viewer (board slab center z + size). */
 	pcb: { boardBottomZ: number; outline: XY[]; thicknessMm: number; center: XY };
-	/**
-	 * Usable interior cavity AABB in the model frame. Component bodies must fit
-	 * inside it (outside = a wall/cap).
-	 */
-	interior?: { min: [number, number, number]; max: [number, number, number] };
-	/** Cavity-intruding fasteners, for the render-time assembly DRC. */
-	obstacles?: DrcObstacle[];
 }
 
 // ---------------------------------------------------------------------------
@@ -128,8 +113,8 @@ export interface EnclosureModel {
 /**
  * What one feature recipe contributes to the enclosure. A recipe never touches
  * part geometry directly; it declares solids to fuse into / cut out of *named*
- * parts, brand-new standalone parts (assembly hardware), the DRC obstacles its
- * geometry creates, and any warnings. Contributions are applied **in order**
+ * parts, brand-new standalone parts (assembly hardware), and any warnings.
+ * Contributions are applied **in order**
  * (each one unions its adds, then subtracts its cuts), so a recipe's hole is
  * always cut after its own boss is fused, exactly like hand-ordered CSG.
  */
@@ -137,7 +122,6 @@ export interface Contribution {
 	adds?: Array<{ part: string; geom: any }>;
 	subtracts?: Array<{ part: string; geom: any }>;
 	newParts?: EnclosurePart[];
-	obstacles?: DrcObstacle[];
 	bomItems?: HardwareBomItem[];
 	hardware?: EnclosureHardwareInstance[];
 	warnings?: string[];
@@ -209,14 +193,12 @@ const applyContributions = (
 ): {
 	geoms: Map<string, any>;
 	newParts: EnclosurePart[];
-	obstacles: DrcObstacle[];
 	bomItems: HardwareBomItem[];
 	hardware: EnclosureHardwareInstance[];
 	warnings: string[];
 } => {
 	const geoms = new Map(blanks.map((b) => [b.id, b.geom]));
 	const newParts: EnclosurePart[] = [];
-	const obstacles: DrcObstacle[] = [];
 	const bomItems: HardwareBomItem[] = [];
 	const hardware: EnclosureHardwareInstance[] = [];
 	const warnings: string[] = [];
@@ -226,12 +208,11 @@ const applyContributions = (
 		for (const s of c.subtracts ?? [])
 			geoms.set(s.part, m.subtract(geoms.get(s.part), s.geom));
 		newParts.push(...(c.newParts ?? []));
-		obstacles.push(...(c.obstacles ?? []));
 		bomItems.push(...(c.bomItems ?? []));
 		hardware.push(...(c.hardware ?? []));
 		warnings.push(...(c.warnings ?? []));
 	}
-	return { geoms, newParts, obstacles, bomItems, hardware, warnings };
+	return { geoms, newParts, bomItems, hardware, warnings };
 };
 
 /** Bounds-measuring part wrapper (B-rep path only; plans stay at zero bounds). */
@@ -420,22 +401,13 @@ const pcbMountingBossFastener = (
 	const bossR = g.bossOuterDiameterMm / 2;
 	const eps = fr.rules.cutOvershootMm;
 	const out: Required<Pick<Contribution, "adds" | "subtracts">> & Contribution =
-		{ adds: [], subtracts: [], obstacles: [], warnings: [] };
+		{ adds: [], subtracts: [], warnings: [] };
 
 	// floor boss supporting the PCB
 	out.adds.push({
 		part: "base",
 		geom: m.cyl(bossR, fr.standoffH, p.x, p.y, fr.floorT + fr.standoffH / 2),
 	});
-	out.obstacles!.push({
-		kind: "standoff",
-		partId: "base",
-		axis: "z",
-		center: [p.x, p.y, fr.floorT + fr.standoffH / 2],
-		radiusMm: bossR,
-		lengthMm: fr.standoffH,
-	});
-
 	// Bore depth is clamped so the hole never breaks through the outer floor.
 	// If that leaves too little depth for an insert, the insert can't fully
 	// seat — warn (screw pilots just get fewer threads, which is fine).
@@ -466,14 +438,6 @@ const pcbMountingBossFastener = (
 		out.adds.push({
 			part: "lid",
 			geom: m.cyl(bossR, colH, p.x, p.y, fr.boardTopZ + colH / 2),
-		});
-		out.obstacles!.push({
-			kind: "lid retention column",
-			partId: "lid",
-			axis: "z",
-			center: [p.x, p.y, fr.boardTopZ + colH / 2],
-			radiusMm: bossR,
-			lengthMm: colH,
 		});
 	}
 	// one long screw from the lid top bores through the column into the
@@ -644,39 +608,7 @@ const lidLip = (fr: SplitShellFrame, headroom: number): Contribution => {
 		m.box(outerX, outerY, lipDepth, 0, 0, z),
 		m.box(innerX, innerY, lipDepth + fr.rules.cutOvershootMm, 0, 0, z),
 	);
-	return {
-		adds: [{ part: "lid", geom: ring }],
-		obstacles: [
-			{
-				kind: "lid lip",
-				partId: "lid",
-				shape: "box" as const,
-				center: [innerX / 2 + lipTh / 2, 0, z],
-				halfSizeMm: [lipTh / 2, outerY / 2, lipDepth / 2],
-			},
-			{
-				kind: "lid lip",
-				partId: "lid",
-				shape: "box" as const,
-				center: [-(innerX / 2 + lipTh / 2), 0, z],
-				halfSizeMm: [lipTh / 2, outerY / 2, lipDepth / 2],
-			},
-			{
-				kind: "lid lip",
-				partId: "lid",
-				shape: "box" as const,
-				center: [0, innerY / 2 + lipTh / 2, z],
-				halfSizeMm: [innerX / 2, lipTh / 2, lipDepth / 2],
-			},
-			{
-				kind: "lid lip",
-				partId: "lid",
-				shape: "box" as const,
-				center: [0, -(innerY / 2 + lipTh / 2), z],
-				halfSizeMm: [innerX / 2, lipTh / 2, lipDepth / 2],
-			},
-		],
-	};
+	return { adds: [{ part: "lid", geom: ring }] };
 };
 
 /**
@@ -706,13 +638,13 @@ export const buildEnclosure = (
 	const rules = params.designRules ?? DEFAULT_DESIGN_RULES;
 	const minBottomGap =
 		features.bottomComponentHeightMm > 0
-			? features.bottomComponentHeightMm + rules.drc.minClearanceMm
+			? features.bottomComponentHeightMm + rules.component.bottomClearanceMm
 			: 0;
 	const standoffH = Math.max(params.standoffHeightMm, minBottomGap);
 	const standoffWarnings =
 		standoffH > params.standoffHeightMm
 			? [
-					`standoffHeight raised to ${standoffH.toFixed(1)}mm to clear bottom-side component/lead projection (${features.bottomComponentHeightMm.toFixed(1)}mm + ${rules.drc.minClearanceMm.toFixed(1)}mm clearance)`,
+					`standoffHeight raised to ${standoffH.toFixed(1)}mm to clear bottom-side component/lead projection (${features.bottomComponentHeightMm.toFixed(1)}mm + ${rules.component.bottomClearanceMm.toFixed(1)}mm clearance)`,
 				]
 			: [];
 
@@ -944,14 +876,6 @@ export const buildEnclosure = (
 		],
 		bomItems,
 		hardware,
-		cutoutComponentIds: allCutouts
-			.map((cutout) => cutout.id)
-			.filter((id): id is string => id != null),
-		interior: {
-			min: [-innerW / 2, -innerH / 2, floorT],
-			max: [innerW / 2, innerH / 2, seamZ],
-		},
-		obstacles: applied.obstacles,
 		meta: {
 			outerW,
 			outerH,

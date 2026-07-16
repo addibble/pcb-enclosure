@@ -4,7 +4,6 @@ import {
 	type EnclosureModel,
 	type MeasureBounds,
 } from "./build-enclosure";
-import { checkEnclosureAssembly, type AssemblyConflict } from "./enclosure-drc";
 import {
 	type EnclosureProps,
 	enclosureProps,
@@ -102,7 +101,6 @@ export interface RenderedEnclosure {
 	features: EnclosureFeatures;
 	placement: EnclosurePlacementOutput;
 	model: EnclosureModel;
-	conflicts: AssemblyConflict[];
 }
 
 export const renderEnclosureFromCircuitJson = (
@@ -159,6 +157,5 @@ export const renderEnclosureFromCircuitJson = (
 		features,
 		placement,
 		model,
-		conflicts: checkEnclosureAssembly(model, features),
 	};
 };

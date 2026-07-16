@@ -8,30 +8,27 @@ while the reference implementation remains in `pcb-enclosure`.
 The boundary is:
 
 ```text
-canonical Circuit JSON       imported enclosure.* TSX
-          \                            /
-           \                          /
+board Circuit JSON        imported assembly/enclosure TSX
+          \                         /
+           \                       /
               pcb-enclosure renderer
                        |
-              enclosure preview GLB
+       canonical source/PCB/CAD model_jscad records
                        |
-        RunFrame / circuit-json-to-gltf / PoppyGL
+        RunFrame / circuit-json-to-gltf / PoppyGL / CLI
 ```
 
-Canonical Circuit JSON contains board/electronics facts only. Enclosure element
-props, aperture declarations, CSG plans, and topology remain ephemeral.
+Canonical Circuit JSON contains the rendered board plus generated enclosure CAD
+plans using its existing source/PCB/CAD record shapes.
 
 ## What is intentionally not required
 
-- No `enclosure` or `cutout_aperture` Circuit JSON schema.
-- No `source_component.cutout_aperture` field.
+- No Circuit JSON schema changes.
 - No public or built-in `<enclosure>` intrinsic.
 - No enclosure-specific core catalogue entry.
 - No `extendCatalogue` export.
-- No persisted `model_jscad` enclosure records.
-- No enclosure-specific change to `circuit-json-to-gltf`.
-- No enclosure-specific change to `3d-viewer`; its existing
-  `cad_component.model_glb_url` support is sufficient.
+- No preview-artifact or GLB blob side channel.
+- No preview-only or out-of-band enclosure representation.
 
 The superseded `addibble/circuit-json:feature/cutout-aperture` branch is not part
 of the current design.
@@ -40,16 +37,17 @@ of the current design.
 
 | Repository | Status / branch | Minimal responsibility |
 | --- | --- | --- |
-| `props` | Merged in [#732](https://github.com/tscircuit/props/pull/732) and [#733](https://github.com/tscircuit/props/pull/733), released in `0.0.580` | React-independent schemas for `enclosure.fdm.box` and `enclosure.cutoutaperture`. |
-| `core` | `rfc/parametric-enclosures` | Generic external React host nodes plus `pcb_component.anchor_position` emission. |
+| `props` | `enclosure-support` | Released schemas for `enclosure.fdm.box` and `enclosure.cutoutaperture`, plus the pending `assembly.device` schema. |
+| `core` | `rfc/parametric-enclosures` | External React roots, canonical Circuit JSON postprocessors, cache opt-out for external metadata, and `pcb_component.anchor_position`. |
 | `circuit-json-util` | `rfc/parametric-enclosures` | Transform `pcb_component.anchor_position` with the component. |
 | `infer-cable-insertion-point` | `fix/explicit-insertion-direction` (`c1eb3ce`) | Prefer explicit transformed insertion direction over geometry guessing. |
-| `eval` | `rfc/parametric-enclosures` | Runtime props imports, optional preview-artifact protocol, and bundled JSCAD/GLB modules. |
-| `runframe` | `rfc/parametric-enclosures` | Materialize enclosure GLB blob URLs and augment only the CAD preview. |
-| `cli` | `rfc/parametric-enclosures` | Carry preview artifacts into combined GLB and PoppyGL PNG outputs. |
-| `3d-viewer` | No enclosure patch required | Render the preview-only GLB CAD component through existing support. |
+| `eval` | `rfc/parametric-enclosures` | Supply runtime props; return canonical Circuit JSON unchanged. |
+| `circuit-json-to-gltf` | PR #170 | Execute serialized plans from the existing `cad_component.model_jscad` field. |
+| `runframe` | `rfc/parametric-enclosures` | Render canonical Circuit JSON directly; remove the old blob-artifact bridge. |
+| `cli` | `rfc/parametric-enclosures` | Use canonical Circuit JSON for sequential/parallel GLB, PNG, GLTF, and static outputs. |
+| `3d-viewer` | No enclosure-specific patch required | Render `cad_component.model_jscad` through existing CAD support. |
 
-## 1. `props`: merged authoring contracts
+## 1. `props`: authoring contracts
 
 `@tscircuit/props@0.0.580` exports:
 
@@ -57,6 +55,16 @@ of the current design.
 enclosureProps.fdm.box
 enclosureProps.cutoutaperture
 ```
+
+The working `enclosure-support` checkout additionally exports:
+
+```ts
+assemblyProps.device
+```
+
+The initial device contract carries an optional product-level `name`. The
+renderable `<assembly.device>` wrapper is supplied by `pcb-enclosure`, later
+`@tscircuit/enclosure`.
 
 The aperture union supports:
 
@@ -151,108 +159,52 @@ The enclosure package uses:
 
 It never uses those heuristics to invent aperture existence or dimensions.
 
-## 5. `eval`: optional preview artifacts
+## 5. Canonical Circuit JSON postprocessing
 
-**Files:**
+Core exposes a process-global synchronous postprocessor registry.
+`pcb-enclosure` registers a postprocessor that reads the imported assembly and
+enclosure elements after board rendering and appends existing:
 
-- `lib/shared/preview-artifacts.ts`
-- `lib/shared/types.ts`
-- `lib/runner/CircuitRunner.ts`
-- `webworker/entrypoint.ts`
-- `lib/worker.ts`
-- `lib/eval/execution-context.ts`
+- synthetic `source_component` records;
+- zero-size, non-obstructing, `do_not_place` `pcb_component` records; and
+- `cad_component.model_jscad` records for base, lid, and visible hardware.
 
-Add a generic optional host protocol keyed by
-`Symbol.for("tscircuit.preview-artifact-host.v1")`.
+The synthetic source/PCB records satisfy the current `cad_component` ownership
+contract. They are deliberately marked so they do not participate in placement
+or obstacle calculations, but they are not semantically real PCB components.
 
-After core rendering, eval asks registered providers for preview artifacts. The
-enclosure provider returns a standard `cad_glb` artifact containing:
+Subcircuit caching is skipped when external metadata exists in the cached
+subtree, so owner relationships remain live until the canonical records are
+created.
 
-- GLB bytes;
-- name/id;
-- position/rotation; and
-- optional diagnostics.
+## 6. `circuit-json-to-gltf`
 
-`getCircuitJson()` remains unchanged and canonical.
+PR #170 executes `jscad-planner` operation trees from
+`cad_component.model_jscad`, converts JSCAD Z-up geometry to the renderer's
+Y-up frame, and feeds the result through the normal GLTF/PoppyGL pipeline.
 
-`@tscircuit/props` must be supplied as its real runtime module rather than the
-old `{}` type-only shim, because enclosure schemas parse props at runtime.
+## 7. Eval, RunFrame, and CLI
 
-Eval also pre-supplies:
+Eval retains only the real runtime `@tscircuit/props` import needed by authored
+packages. The preview-artifact host, dynamic JSCAD loader, and worker API are
+removed.
 
-- `@jscad/modeling`;
-- `jscad-planner`; and
-- `jscad-to-gltf`.
+RunFrame renders the same canonical Circuit JSON exposed in callbacks and the
+JSON tab. There are no GLB blob URLs or CAD-only augmented copies.
 
-This avoids asking the browser evaluator to recursively load JSCAD's CommonJS
-source graph. Package resolution additionally falls back to an uploaded
-`unpkg` browser entry when `main` is not available.
-
-## 6. `runframe`: preview-only GLB composition
-
-**Files:**
-
-- `lib/components/RunFrame/RunFrame.tsx`
-- `lib/components/RunFrame/run-completion.ts`
-- `lib/components/CircuitJsonPreview/PreviewContentProps.ts`
-- `lib/components/CircuitJsonPreview/CircuitJsonPreview.tsx`
-- `lib/components/RunFrameWithApi/RunFrameWithApi.tsx`
-
-RunFrame requests preview artifacts after final rendering, creates blob URLs for
-`cad_glb` bytes, and revokes old URLs on rerun/unmount.
-
-Only the CAD tab receives an augmented Circuit JSON copy containing temporary
-source/PCB/CAD component records whose `model_glb_url` is the blob URL.
-
-The following continue to receive canonical Circuit JSON:
-
-- PCB/schematic/assembly/BOM/JSON/error tabs;
-- `onCircuitJsonChange`;
-- `onRenderFinished`; and
-- persisted `RUN_COMPLETED` API events.
-
-The raw in-memory `onRunCompleted` callback may receive preview artifacts, but
-RunFrame strips the bytes before persisting the event.
-
-## 7. `cli`: PoppyGL and combined GLB output
-
-Node rendering captures preview artifacts while the imported TSX and root
-circuit are still live.
-
-Before 3D-only conversion, CLI materializes each GLB as a data URL and appends
-the same temporary CAD records used by RunFrame. It applies this only to:
-
-- generated `3d.glb` / GLTF previews; and
-- PoppyGL-backed `3d.png`.
-
-The emitted `circuit.json`, PCB/schematic images, fabrication data, and STEP
-conversion remain canonical and unaffected.
-
-Worker builds consume artifacts in the worker; single-process builds carry them
-on the in-memory `BuildFileResult`.
-
-Preview-artifact generation is guarded: a failing provider (for example an
-invalid enclosure spec) is logged and skipped so canonical `circuit.json`
-generation and export never abort.
-
-## 8. `3d-viewer`: no enclosure-specific patch
-
-The released viewer already loads `cad_component.model_glb_url`, including blob
-and data URLs. RunFrame's synthetic preview component therefore appears beside
-the normal board/component scene without an enclosure kernel or topology
-support in the viewer.
-
-Per-part opacity and exploded-view controls from the older `model_jscad` design
-are not required for RFC phase 2 and should not be included in the minimal
-patch.
+CLI sequential and worker builds write the same canonical `circuit.json`.
+GLB, GLTF, PoppyGL PNG, saved builds, and static viewers all consume that file,
+so concurrency and process boundaries no longer require enclosure-specific
+transport.
 
 ## Release / integration order
 
 1. Release `circuit-json-util` with transformed `anchor_position`.
-2. Release core with generic external elements and mounting-origin emission.
-3. Use already-released props `0.0.580`.
-4. Release eval with the preview protocol and bundled renderer modules.
-5. Release RunFrame and CLI against that eval version.
+2. Release core with external roots, postprocessors, cache safety, and mounting
+   origin emission.
+3. Release props with `assemblyProps.device`.
+4. Release `circuit-json-to-gltf` JSCAD-plan support.
+5. Release eval, RunFrame, and CLI with the obsolete artifact path removed.
 6. Publish/migrate the current package as `@tscircuit/enclosure` when the
    maintainers provide its repository skeleton.
 
@@ -260,10 +212,10 @@ patch.
 
 The prefab reference must demonstrate:
 
-1. canonical Circuit JSON has no enclosure or aperture records;
-2. seven imported aperture declarations remain owned by their parts;
-3. the pure renderer produces base, lid, hardware, DRC results, STL, and GLB;
-4. combined GLB contains board/component nodes plus `EN1`;
-5. PoppyGL renders the combined scene; and
-6. RunFrame's CAD scene loads one additional enclosure GLB object without
-   changing the Circuit JSON tab.
+1. canonical Circuit JSON contains the expected synthetic source/PCB owners and
+   `model_jscad` CAD records;
+2. saved Circuit JSON renders the same enclosure without source TSX;
+3. sequential and parallel CLI GLB/PNG/GLTF outputs include the enclosure;
+4. PoppyGL renders board, components, base, lid, and hardware; and
+5. STL and other manufacturing exports remain equivalent to the reference
+   implementation.

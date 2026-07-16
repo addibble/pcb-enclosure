@@ -123,40 +123,6 @@ export interface MountPoint {
 	side: "floor" | "lid";
 }
 
-/** Shared fields for an enclosure feature that protrudes into the cavity. */
-interface DrcObstacleBase {
-	/** Feature label for the DRC message, e.g. "screw channel", "lid column". */
-	kind: string;
-	/** Owning part id (base / lid). */
-	partId: string;
-	center: [number, number, number];
-}
-
-/** Cylindrical cavity obstacle (standoff, screw channel, lid column). */
-export interface DrcCylinderObstacle extends DrcObstacleBase {
-	shape?: "cylinder";
-	axis: "x" | "y" | "z";
-	radiusMm: number;
-	/** Length along `axis`. */
-	lengthMm: number;
-}
-
-/** Axis-aligned box cavity obstacle (lip/rib/bar features). */
-export interface DrcBoxObstacle extends DrcObstacleBase {
-	shape: "box";
-	/** Half-size along x/y/z. */
-	halfSizeMm: [number, number, number];
-}
-
-/**
- * An enclosure feature that protrudes into the interior cavity. Emitted by the
- * feature recipes in `build-enclosure.ts` for the mesh-free render-time assembly
- * DRC (`lib/enclosure-drc.ts`), which can't run the `@jscad/modeling` boolean
- * intersection the build-script DRC uses. Coordinates are in the **model frame**
- * (board recentered to x=y=0, z as built).
- */
-export type DrcObstacle = DrcCylinderObstacle | DrcBoxObstacle;
-
 /**
  * Everything the generator needs to know about a board, extracted from Circuit
  * JSON (board geometry) plus optional annotations the user supplies for features

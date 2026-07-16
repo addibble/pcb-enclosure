@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { Circuit } from "@tscircuit/core";
 import { TypeC14pCc26 } from "../examples/parts/type-c-14p-cc-2-6";
-import { collectEnclosureInputs, enclosure } from "pcb-enclosure";
+import { assembly, collectEnclosureInputs, enclosure } from "pcb-enclosure";
 
 const renderPart = (cutoutAperture?: {
 	shape: "circle";
@@ -17,7 +17,7 @@ const renderPart = (cutoutAperture?: {
 	globalWithCircuit.__tscircuit_circuit = circuit;
 	try {
 		circuit.add(
-			<group>
+			<assembly.device>
 				<board name="B1" width="20mm" height="20mm">
 					<TypeC14pCc26 name="J1" pcbX={8} pcbY={0}>
 						{cutoutAperture && (
@@ -31,7 +31,7 @@ const renderPart = (cutoutAperture?: {
 					</TypeC14pCc26>
 				</board>
 				<enclosure.fdm.box boardRef=".B1" autoCutouts />
-			</group>,
+			</assembly.device>,
 		);
 		circuit.render();
 	} finally {

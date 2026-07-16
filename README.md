@@ -17,8 +17,8 @@ board outline, mounting holes, component heights, and connector placement.
 - External corner fastening ears when mounting holes do not cover the corners.
 - Automatic placement of explicitly declared connector apertures.
 - Visible bushings and screws with a toggleable exploded assembly view.
-- Seated-assembly and board-insertion collision checks.
-- Read-only canonical Circuit JSON input with ephemeral enclosure specs.
+- Existing Circuit JSON source/PCB/CAD records carrying serialized enclosure
+  `model_jscad` plans.
 - Standalone enclosure GLB, STL, and combined PCB/enclosure preview output.
 
 There is no public `<enclosure>` intrinsic or canonical Circuit JSON enclosure
@@ -35,17 +35,17 @@ use these coordinated addibble-owned fork branches together:
 
 | Repository branch | Required capability |
 | --- | --- |
-| [`addibble/core:rfc/parametric-enclosures`](https://github.com/addibble/core/tree/rfc/parametric-enclosures) | Generic external React host elements and `pcb_component.anchor_position` preservation through isolation/cached inflation. |
+| [`addibble/core:rfc/parametric-enclosures`](https://github.com/addibble/core/tree/rfc/parametric-enclosures) | Generic external React roots, canonical Circuit JSON postprocessors, cache opt-out for external metadata, and mounting-origin emission. |
 | [`addibble/circuit-json-util:rfc/parametric-enclosures`](https://github.com/addibble/circuit-json-util/tree/rfc/parametric-enclosures) | Transform `pcb_component.anchor_position` with component/group layout. |
-| [`@tscircuit/props@0.0.580`](https://github.com/tscircuit/props/releases/tag/v0.0.580) | Merged `enclosure.fdm.box` and `enclosure.cutoutaperture` contracts from [#733](https://github.com/tscircuit/props/pull/733) and [#732](https://github.com/tscircuit/props/pull/732). |
+| [`tscircuit/props:enclosure-support`](https://github.com/tscircuit/props) | Released enclosure contracts plus the pending `assembly.device` contract. |
 | [`addibble/infer-cable-insertion-point:fix/explicit-insertion-direction`](https://github.com/addibble/infer-cable-insertion-point/tree/fix/explicit-insertion-direction) | Explicit mating direction takes precedence over geometry guessing. |
-| [`addibble/eval:rfc/parametric-enclosures`](https://github.com/addibble/eval/tree/rfc/parametric-enclosures) | Optional preview-artifact protocol, runtime props schemas, and bundled JSCAD/GLB modules. |
-| [`addibble/runframe:rfc/parametric-enclosures`](https://github.com/addibble/runframe/tree/rfc/parametric-enclosures) | Blob-backed enclosure GLB artifacts composed only into the CAD preview. |
-| [`addibble/cli:rfc/parametric-enclosures`](https://github.com/addibble/cli/tree/rfc/parametric-enclosures) | Carry preview artifacts into combined GLB and PoppyGL PNG outputs, resilient to preview failures. |
+| [`addibble/eval:rfc/parametric-enclosures`](https://github.com/addibble/eval/tree/rfc/parametric-enclosures) | Runtime `@tscircuit/props`; enclosure CAD travels through normal Circuit JSON. |
+| [`tscircuit/circuit-json-to-gltf#170`](https://github.com/tscircuit/circuit-json-to-gltf/pull/170) | Execute the existing `cad_component.model_jscad` field. |
+| `runframe` / `cli` | No enclosure-specific transport; both consume canonical Circuit JSON. |
 | [`addibble/jscad-electronics:fix/connected-right-angle-pinrow`](https://github.com/addibble/jscad-electronics/tree/fix/connected-right-angle-pinrow) | Correct connected geometry for inverted right-angle pin rows. |
 
-`3d-viewer` needs no enclosure patch; it renders the preview GLB through its
-released `cad_component.model_glb_url` support.
+`3d-viewer` needs no enclosure-specific patch; canonical
+`cad_component.model_jscad` records use its existing CAD rendering path.
 
 The local development setup uses these repositories as sibling checkouts and
 links their builds into the dependency graph. See
@@ -54,13 +54,14 @@ compatibility analysis, tests, and publication status of every upstream change.
 
 ## Element usage
 
-`<enclosure.fdm.box />` is an assembly-level sibling of `<board />`:
+`<assembly.device>` is the product root. It emits no Circuit JSON records and
+contains the board plus its enclosure specification:
 
 ```tsx
-import { enclosure } from "pcb-enclosure"
+import { assembly, enclosure } from "pcb-enclosure"
 
 export default () => (
-  <group>
+  <assembly.device name="controller">
     <board name="B1" width="50mm" height="36mm">
       <hole pcbX={-20} pcbY={-13} diameter="3.2mm" />
       <hole pcbX={20} pcbY={-13} diameter="3.2mm" />
@@ -69,7 +70,7 @@ export default () => (
     </board>
 
     <enclosure.fdm.box name="EN1" boardRef=".B1" autoCutouts />
-  </group>
+  </assembly.device>
 )
 ```
 
@@ -124,10 +125,17 @@ This requires a coordinated data path:
 1. `@tscircuit/props` defines the typed `enclosure.cutoutaperture` shape props.
 2. Core retains the imported element as a generic, no-output tree node with its
    normal-component parent relationship intact.
-3. `pcb-enclosure` collects the node and maps its owner through
-   `source_component_id` without writing aperture data to Circuit JSON.
-4. The artifact renderer combines that ephemeral aperture map with canonical
-   Circuit JSON. Parts without a declaration receive no opening.
+3. `pcb-enclosure` maps the owner through `source_component_id` while the live
+   TSX tree is available.
+4. The enclosure postprocessor appends synthetic standard source/PCB/CAD
+   records whose CAD records carry `model_jscad`. Parts without a declaration
+   receive no opening.
+
+Circuit JSON does not currently have a PCB-independent assembly-part record, so
+each generated enclosure model uses a synthetic `source_component` and a
+zero-size, non-obstructing, `do_not_place` `pcb_component`. This preserves the
+existing Circuit JSON schema and enables saved/static rendering, but those
+records are compatibility scaffolding rather than semantic PCB components.
 
 The footprint also declares its invariant, part-local `insertionDirection`.
 Core rotates that direction with the instance's `pcbRotation` and emits the
@@ -159,9 +167,9 @@ bun install
 bun run check:examples
 ```
 
-The checker confirms canonical Circuit JSON contains no enclosure topology, then
-verifies the separately rendered base/lid plans, post/ear/cutout counts,
-hardware geometry, and seated/insertion clearance.
+The checker confirms canonical Circuit JSON contains the expected synthetic
+source/PCB owners and JSCAD CAD records, then verifies base/lid plans,
+post/ear/cutout counts, and hardware geometry.
 
 ## Run the web UI
 
@@ -169,10 +177,10 @@ hardware geometry, and seated/insertion clearance.
 bun run dev
 ```
 
-Open <http://localhost:3020>. The command runs the prefab TSX through the local
-eval worker. Core produces canonical Circuit JSON, `pcb-enclosure` produces a
-separate GLB artifact, and RunFrame adds a temporary GLB-backed CAD component
-only to the 3D preview. The Circuit JSON tab and callbacks remain canonical.
+Open <http://localhost:3020>. Core renders the board, then the enclosure
+postprocessor appends synthetic source/PCB owners and CAD records containing
+serializable JSCAD plans. RunFrame renders the same Circuit JSON shown in the
+JSON tab; there is no separate preview artifact.
 
 In RunFrame:
 
@@ -200,7 +208,7 @@ This writes:
 - `out/viewer.html`
 
 Open `out/viewer.html` for the standalone layered preview. The command also
-prints the enclosure dimensions, mounting-hardware BOM, and collision results.
+prints the enclosure dimensions and mounting-hardware BOM.
 
 ## Library layers
 
@@ -210,8 +218,8 @@ prints the enclosure dimensions, mounting-hardware BOM, and collision results.
 | `lib/placement-solver.ts` | Validate PCB mounts and place uncovered corner fasteners. |
 | `lib/cutouts.ts` | Place and validate explicitly declared apertures. |
 | `lib/build-enclosure.ts` | Lower the resolved design to split-shell CSG. |
-| `lib/render-enclosure.ts` | Pure canonical-Circuit-JSON artifact renderer. |
-| `lib/preview-artifact.ts` | Ephemeral spec-to-GLB host adapter. |
+| `lib/render-enclosure.ts` | Board Circuit JSON to enclosure plans. |
+| `lib/canonical-circuit-json.ts` | Append assembly, interface, and `model_jscad` records. |
 
 ## License
 

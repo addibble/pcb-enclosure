@@ -6,10 +6,6 @@ import { Circuit } from "@tscircuit/core";
 import type { CircuitJson } from "circuit-json";
 import { createElement } from "react";
 import PrefabBoardCircuit from "../examples/prefab-board.circuit";
-import {
-	checkAssemblyCollisions,
-	checkInsertionCollisions,
-} from "../lib/assembly-check";
 import { collectEnclosureInputs } from "../lib/collect-enclosure-inputs";
 import { renderEnclosureFromCircuitJson } from "../lib/render-enclosure";
 
@@ -40,12 +36,30 @@ for (const example of examples) {
 		readFileSync(`dist/examples/${example.slug}/circuit.json`, "utf8"),
 	) as CircuitJson;
 	assert.equal(
-		builtCircuitJson.some(
+		builtCircuitJson.filter(
 			(element) =>
-				element.type === "cad_component" && "enclosure_part_id" in element,
-		),
-		false,
-		`${example.slug} canonical Circuit JSON contains enclosure topology`,
+				element.type === "source_component" &&
+				element.source_component_id.startsWith("source_enclosure_"),
+		).length,
+		2 + example.expected.hardwareInstances,
+		`${example.slug} synthetic enclosure source components`,
+	);
+	assert.equal(
+		builtCircuitJson.filter(
+			(element) =>
+				element.type === "pcb_component" &&
+				element.pcb_component_id.startsWith("pcb_enclosure_"),
+		).length,
+		2 + example.expected.hardwareInstances,
+		`${example.slug} synthetic enclosure PCB components`,
+	);
+	assert.equal(
+		builtCircuitJson.filter(
+			(element) =>
+				element.type === "cad_component" && element.model_jscad != null,
+		).length,
+		2 + example.expected.hardwareInstances,
+		`${example.slug} enclosure CAD models`,
 	);
 	const circuit = new Circuit();
 	const globalWithCircuit = globalThis as typeof globalThis & {
@@ -72,7 +86,7 @@ for (const example of examples) {
 			},
 		},
 	);
-	const { model, features, params } = rendered;
+	const { model } = rendered;
 	assert.equal(
 		model.meta.posts,
 		example.expected.posts,
@@ -91,8 +105,6 @@ for (const example of examples) {
 	assert.deepEqual(model.parts.map((part) => part.id).sort(), ["base", "lid"]);
 	assert.equal(model.hardware.length, example.expected.hardwareInstances);
 	assert.deepEqual(model.warnings, []);
-	assert.deepEqual(checkAssemblyCollisions(model, features), []);
-	assert.deepEqual(checkInsertionCollisions(model, features, params), []);
 
 	console.log(
 		`${example.slug}: ${model.meta.posts} posts, ${model.meta.bosses} ears, ${model.meta.cutouts} cutouts`,

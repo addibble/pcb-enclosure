@@ -1,6 +1,7 @@
-export * from "./assembly-check";
+export * from "./assembly-namespace";
 export * from "./base-solver";
 export * from "./build-enclosure";
+export * from "./canonical-circuit-json";
 export * from "./children";
 export * from "./collect-enclosure-inputs";
 export * from "./cutout-aperture";
@@ -14,7 +15,5 @@ export * from "./extract-features";
 export * from "./jscad-plan";
 export * from "./mounting-hardware-catalog";
 export * from "./placement-solver";
-export * from "./preview-artifact";
 export * from "./render-enclosure";
 export * from "./types";
-export * from "./units";
