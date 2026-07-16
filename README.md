@@ -40,7 +40,6 @@ use these coordinated addibble-owned fork branches together:
 | [`addibble/infer-cable-insertion-point:fix/explicit-insertion-direction`](https://github.com/addibble/infer-cable-insertion-point/tree/fix/explicit-insertion-direction) | Explicit mating direction takes precedence over geometry guessing. |
 | [`addibble/eval:rfc/parametric-enclosures`](https://github.com/addibble/eval/tree/rfc/parametric-enclosures) | Runtime `@tscircuit/props`; enclosure CAD travels through normal Circuit JSON. |
 | [`tscircuit/circuit-json-to-gltf#170`](https://github.com/tscircuit/circuit-json-to-gltf/pull/170) | Execute the existing `cad_component.model_jscad` field. |
-| [`addibble/runframe:rfc/parametric-enclosures`](https://github.com/addibble/runframe/tree/rfc/parametric-enclosures) | Render canonical Circuit JSON directly without the old blob-artifact bridge. |
 | [`addibble/cli:rfc/parametric-enclosures`](https://github.com/addibble/cli/tree/rfc/parametric-enclosures) | Use canonical Circuit JSON for sequential/parallel GLB, PNG, GLTF, and static outputs. |
 | [`addibble/jscad-electronics:fix/connected-right-angle-pinrow`](https://github.com/addibble/jscad-electronics/tree/fix/connected-right-angle-pinrow) | Correct connected geometry for inverted right-angle pin rows. |
 

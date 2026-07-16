@@ -42,7 +42,6 @@ of the current design.
 | [`addibble/infer-cable-insertion-point`](https://github.com/addibble/infer-cable-insertion-point/tree/fix/explicit-insertion-direction) | `fix/explicit-insertion-direction` (`c1eb3ce`) | Prefer explicit transformed insertion direction over geometry guessing. |
 | [`addibble/eval`](https://github.com/addibble/eval/tree/rfc/parametric-enclosures) | `rfc/parametric-enclosures` | Supply runtime props; return canonical Circuit JSON unchanged. |
 | [`tscircuit/circuit-json-to-gltf#170`](https://github.com/tscircuit/circuit-json-to-gltf/pull/170) | PR #170 | Execute serialized plans from the existing `cad_component.model_jscad` field. |
-| [`addibble/runframe`](https://github.com/addibble/runframe/tree/rfc/parametric-enclosures) | `rfc/parametric-enclosures` | Render canonical Circuit JSON directly; remove the old blob-artifact bridge. |
 | [`addibble/cli`](https://github.com/addibble/cli/tree/rfc/parametric-enclosures) | `rfc/parametric-enclosures` | Use canonical Circuit JSON for sequential/parallel GLB, PNG, GLTF, and static outputs. |
 | `3d-viewer` | No enclosure-specific patch required | Render `cad_component.model_jscad` through existing CAD support. |
 
@@ -165,7 +164,7 @@ transport.
 1. Release core with external roots, postprocessors, and cache safety.
 2. Release props with `assemblyProps.device`.
 3. Release `circuit-json-to-gltf` JSCAD-plan support.
-4. Release eval, RunFrame, and CLI with the obsolete artifact path removed.
+4. Release eval and CLI with the obsolete artifact path removed.
 5. Publish/migrate the current package as `@tscircuit/enclosure` when the
    maintainers provide its repository skeleton.
 
