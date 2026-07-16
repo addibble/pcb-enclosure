@@ -64,17 +64,6 @@ export interface ComponentBody {
 	id: string;
 	/** Body center in board-plane coordinates. */
 	center: XY;
-	/**
-	 * Component-local mounting frame projected into the board plane. Aperture
-	 * positions use this origin and rotation; local z=0 is the component-side PCB
-	 * surface and positive z points away from the board.
-	 */
-	componentFrame?: {
-		origin: XY;
-		rotationDeg: number;
-		/** Bottom-side footprints mirror their local Y axis before rotation. */
-		flipY?: boolean;
-	};
 	lengthMm: number; // axis-aligned extent along x
 	widthMm: number; // axis-aligned extent along y
 	/** Body height measured outward from the owning PCB surface. */

@@ -152,13 +152,6 @@ export const MicroXnj = ({
 		pcbY={pcbY}
 		pcbRotation={pcbRotation}
 	>
-		{children ?? (
-			<enclosure.cutoutaperture
-				shape="pill"
-				width={8}
-				height={3}
-				position={{ z: 1.5 }}
-			/>
-		)}
+		{children ?? <enclosure.cutoutaperture shape="pill" width={8} height={3} />}
 	</connector>
 );

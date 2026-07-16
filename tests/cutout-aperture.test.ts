@@ -7,7 +7,6 @@ const usbCProfile = {
 	widthMm: 9.2,
 	heightMm: 3.3,
 	cornerRadiusMm: 1.65,
-	position: { z: 1.65 },
 };
 
 const features = (bodies: ComponentBody[]): EnclosureFeatures => ({
@@ -46,8 +45,8 @@ test("a USB-C connector gets a rounded_rect aperture, not a body-sized rect", ()
 	// (7.3) that a bbox rectangle would have used
 	expect(c.widthMm).toBeCloseTo(9.2 + 2 * 0.5);
 	expect(c.heightMm).toBeCloseTo(3.3 + 2 * 0.5);
-	// vertical opening sits at the aperture height, not half the housing
-	expect(c.zCenterAboveBoardMm).toBeCloseTo(1.65);
+	// Without authored interaction metadata, vertical placement uses body center.
+	expect(c.zCenterAboveBoardMm).toBeCloseTo(1.6);
 });
 
 test("embedded aperture metadata defines an auto cutout", () => {
@@ -62,7 +61,6 @@ test("embedded aperture metadata defines an auto cutout", () => {
 		cutoutAperture: {
 			shape: "circle",
 			diameterMm: 8,
-			position: { z: 5.5 },
 		},
 	};
 	const [cutout] = resolveCutouts(features([connector]), [], {
@@ -71,94 +69,7 @@ test("embedded aperture metadata defines an auto cutout", () => {
 
 	expect(cutout.shape).toBe("circle");
 	expect(cutout.widthMm).toBe(9);
-	expect(cutout.zCenterAboveBoardMm).toBe(5.5);
-});
-
-test("partial aperture positions override component-local axes after rotation", () => {
-	const connector: ComponentBody = {
-		id: "J_LOCAL",
-		center: { x: 0, y: 16 },
-		componentFrame: {
-			origin: { x: 0, y: 16 },
-			rotationDeg: 90,
-		},
-		lengthMm: 8,
-		widthMm: 5,
-		heightMm: 6,
-		ftype: "simple_connector",
-		insertionDirection: "from_back",
-		cableInsertionCenter: { x: 0, y: 20.3 },
-		cutoutAperture: {
-			shape: "circle",
-			diameterMm: 5,
-			position: { y: 2, z: 3 },
-		},
-	};
-	const [cutout] = resolveCutouts(features([connector]), [], {
-		autoCutouts: true,
-	});
-
-	// The inferred local x is retained while local y=2 rotates onto board -x.
-	expect(cutout.center.x).toBeCloseTo(-2);
-	expect(cutout.center.y).toBeCloseTo(20.3);
 	expect(cutout.zCenterAboveBoardMm).toBe(3);
-});
-
-test("aperture offsets do not override wall selection", () => {
-	const connector: ComponentBody = {
-		id: "J_OFFSET",
-		center: { x: 27, y: 0 },
-		componentFrame: {
-			origin: { x: 27, y: 0 },
-			rotationDeg: 0,
-		},
-		lengthMm: 6,
-		widthMm: 5,
-		heightMm: 4,
-		ftype: "simple_connector",
-		cutoutAperture: {
-			shape: "circle",
-			diameterMm: 4,
-			position: { y: 1 },
-		},
-	};
-
-	const [cutout] = resolveCutouts(features([connector]), [], {
-		autoCutouts: true,
-	});
-
-	expect(cutout.face).toBe("+x");
-	expect(cutout.center).toEqual({ x: 27, y: 1 });
-});
-
-test("component-local z points away from the owning PCB surface", () => {
-	const connector: ComponentBody = {
-		id: "J_BOTTOM",
-		center: { x: 26, y: 0 },
-		componentFrame: {
-			origin: { x: 26, y: 0 },
-			rotationDeg: 90,
-			flipY: true,
-		},
-		lengthMm: 8,
-		widthMm: 5,
-		heightMm: 6,
-		side: "bottom",
-		ftype: "simple_connector",
-		insertionDirection: "from_right",
-		cutoutAperture: {
-			shape: "circle",
-			diameterMm: 5,
-			position: { x: 2, y: 3, z: 2 },
-		},
-	};
-	const [cutout] = resolveCutouts(features([connector]), [], {
-		autoCutouts: true,
-	});
-
-	expect(cutout.center.x).toBeCloseTo(29);
-	expect(cutout.center.y).toBeCloseTo(2);
-	expect(cutout.zCenterAboveBoardMm).toBe(-3.6);
 });
 
 test("cable_insertion_center picks the wall and centers the opening along it", () => {

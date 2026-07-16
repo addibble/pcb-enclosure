@@ -1,6 +1,9 @@
-import { enclosureCutoutApertureProps, point3 } from "@tscircuit/props";
+import {
+	enclosureCutoutApertureProps,
+	type EnclosureCutoutApertureProps,
+	type ParsedEnclosureCutoutApertureProps,
+} from "@tscircuit/props";
 import { createElement, type ReactElement } from "react";
-import { z } from "zod";
 import type { EnclosureProps } from "./enclosure-props";
 import { enclosureProps } from "./enclosure-props";
 import { registerExternalElement } from "./register-external-react-element";
@@ -8,18 +11,11 @@ import { registerExternalElement } from "./register-external-react-element";
 export const ENCLOSURE_FDM_BOX_ELEMENT = "enclosure.fdm.box";
 export const ENCLOSURE_CUTOUT_APERTURE_ELEMENT = "enclosure.cutoutaperture";
 
-export const enclosureCutoutApertureJsxProps = enclosureCutoutApertureProps.and(
-	z.object({
-		position: point3.partial().optional(),
-	}),
-);
+export const enclosureCutoutApertureJsxProps = enclosureCutoutApertureProps;
 
-export type EnclosureCutoutApertureJsxProps = z.input<
-	typeof enclosureCutoutApertureJsxProps
->;
-export type ParsedEnclosureCutoutApertureJsxProps = z.output<
-	typeof enclosureCutoutApertureJsxProps
->;
+export type EnclosureCutoutApertureJsxProps = EnclosureCutoutApertureProps;
+export type ParsedEnclosureCutoutApertureJsxProps =
+	ParsedEnclosureCutoutApertureProps;
 
 registerExternalElement(ENCLOSURE_FDM_BOX_ELEMENT, enclosureProps);
 registerExternalElement(
@@ -33,10 +29,12 @@ const EnclosureFdmBoxElement = (props: EnclosureProps): ReactElement =>
 const EnclosureCutoutApertureElement = (
 	props: EnclosureCutoutApertureJsxProps,
 ): ReactElement => {
-	if (props.shape === "circle")
+	if (props.shape === "circle") {
 		return createElement(ENCLOSURE_CUTOUT_APERTURE_ELEMENT, props);
-	if (props.shape === "pill")
+	}
+	if (props.shape === "pill") {
 		return createElement(ENCLOSURE_CUTOUT_APERTURE_ELEMENT, props);
+	}
 	return createElement(ENCLOSURE_CUTOUT_APERTURE_ELEMENT, props);
 };
 

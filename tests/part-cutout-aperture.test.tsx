@@ -7,7 +7,6 @@ const renderPart = (cutoutAperture?: {
 	shape: "circle";
 	radius: number;
 	margin?: number | string;
-	position: { z: number | string };
 }) => {
 	const circuit = new Circuit();
 	const globalWithCircuit = globalThis as typeof globalThis & {
@@ -25,7 +24,6 @@ const renderPart = (cutoutAperture?: {
 								shape={cutoutAperture.shape}
 								radius={cutoutAperture.radius}
 								margin={cutoutAperture.margin}
-								position={cutoutAperture.position}
 							/>
 						)}
 					</TypeC14pCc26>
@@ -51,7 +49,6 @@ test("library part supplies its default cutout aperture", () => {
 		widthMm: 3.66,
 		heightMm: 8.34,
 		cornerRadiusMm: 1.83,
-		position: { z: 6.75 },
 	});
 	expect(
 		rendered.circuitJson.some(
@@ -67,12 +64,10 @@ test("circuit can extend a library part with an aperture override", () => {
 			shape: "circle",
 			radius: 3.5,
 			margin: "0.2mm",
-			position: { z: "0.1in" },
 		}).aperture,
 	).toEqual({
 		shape: "circle",
 		diameterMm: 7,
 		marginMm: 0.2,
-		position: { z: 2.54 },
 	});
 });

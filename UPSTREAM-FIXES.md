@@ -37,14 +37,14 @@ of the current design.
 
 | Repository | Status / branch | Minimal responsibility |
 | --- | --- | --- |
-| `props` | `enclosure-support` | Released schemas for `enclosure.fdm.box` and `enclosure.cutoutaperture`, plus the pending `assembly.device` schema. |
-| `core` | `rfc/parametric-enclosures` | External React roots, canonical Circuit JSON postprocessors, cache opt-out for external metadata, and `pcb_component.anchor_position`. |
-| `circuit-json-util` | `rfc/parametric-enclosures` | Transform `pcb_component.anchor_position` with the component. |
-| `infer-cable-insertion-point` | `fix/explicit-insertion-direction` (`c1eb3ce`) | Prefer explicit transformed insertion direction over geometry guessing. |
-| `eval` | `rfc/parametric-enclosures` | Supply runtime props; return canonical Circuit JSON unchanged. |
-| `circuit-json-to-gltf` | PR #170 | Execute serialized plans from the existing `cad_component.model_jscad` field. |
-| `runframe` | `rfc/parametric-enclosures` | Render canonical Circuit JSON directly; remove the old blob-artifact bridge. |
-| `cli` | `rfc/parametric-enclosures` | Use canonical Circuit JSON for sequential/parallel GLB, PNG, GLTF, and static outputs. |
+| [`addibble/props`](https://github.com/addibble/props/tree/enclosure-support) | `enclosure-support` | Released schemas for `enclosure.fdm.box` and `enclosure.cutoutaperture`, plus the pending `assembly.device` schema. |
+| [`addibble/core`](https://github.com/addibble/core/tree/rfc/parametric-enclosures) | `rfc/parametric-enclosures` | External React roots, canonical Circuit JSON postprocessors, and cache opt-out for external metadata. |
+| [`addibble/infer-cable-insertion-point`](https://github.com/addibble/infer-cable-insertion-point/tree/fix/explicit-insertion-direction) | `fix/explicit-insertion-direction` (`c1eb3ce`) | Prefer explicit transformed insertion direction over geometry guessing. |
+| [`addibble/eval`](https://github.com/addibble/eval/tree/rfc/parametric-enclosures) | `rfc/parametric-enclosures` | Supply runtime props; return canonical Circuit JSON unchanged. |
+| [`tscircuit/circuit-json-to-gltf#170`](https://github.com/tscircuit/circuit-json-to-gltf/pull/170) | PR #170 | Execute serialized plans from the existing `cad_component.model_jscad` field. |
+| [`addibble/runframe`](https://github.com/addibble/runframe/tree/rfc/parametric-enclosures) | `rfc/parametric-enclosures` | Render canonical Circuit JSON directly; remove the old blob-artifact bridge. |
+| [`addibble/cli`](https://github.com/addibble/cli/tree/rfc/parametric-enclosures) | `rfc/parametric-enclosures` | Use canonical Circuit JSON for sequential/parallel GLB, PNG, GLTF, and static outputs. |
+| [`addibble/circuit-json-util`](https://github.com/addibble/circuit-json-util/tree/rfc/parametric-enclosures) | `rfc/parametric-enclosures` | Reverts the superseded `anchor_position` prototype; no enclosure-specific utility change remains. |
 | `3d-viewer` | No enclosure-specific patch required | Render `cad_component.model_jscad` through existing CAD support. |
 
 ## 1. `props`: authoring contracts
@@ -72,9 +72,8 @@ The aperture union supports:
 - `rect`: `width`, `height`; and
 - `circle`: `radius`.
 
-Every branch may include `margin`. The reference package temporarily extends
-the aperture with a component-local `position` until the RFC interaction-surface
-vocabulary is finalized.
+Every branch may include `margin`. The reference package uses this upstream
+schema without additional props.
 
 No additional props patch is currently required.
 
@@ -106,45 +105,10 @@ built-ins.
 
 ### Isolation and cached placement
 
-Two follow-up fixes keep external nodes usable inside subcircuits:
+Cached subcircuits containing external metadata bypass isolation so the live
+owner relationships remain available to the canonical postprocessor.
 
-- `IsolatedCircuit` collects descendant external elements during rendering so
-  apertures nested in cached/isolated subcircuits are not dropped; and
-- `getInflatedPcbPlacement` prefers `anchor_position` over `center` when
-  reinflating a cached subcircuit's PCB placement.
-
-### Mounting origin
-
-The enclosure resolver needs a component-local mounting frame for aperture
-offsets. `pcb_component.center` is the rendered footprint bounds center and is
-not necessarily the footprint origin.
-
-Core therefore initializes the already-standard
-`pcb_component.anchor_position` in:
-
-- `NormalComponent`;
-- `Chip`;
-- `Jumper`; and
-- `SolderJumper`.
-
-No new Circuit JSON field is introduced.
-
-## 3. `circuit-json-util`: transform mounting origins
-
-**File:** `lib/transform-soup-elements.ts`
-
-When a `pcb_component` is translated, rotated, packed, or moved with manual edit
-events, apply the same matrix to `anchor_position` as to `center` and
-`cable_insertion_center`.
-
-This one generic change covers core grid/pack placement, nested groups, and
-manual edits. It replaces the larger core-side reposition wrappers from the
-earlier prototype.
-
-This patch is required; without it, asymmetric or rotated footprints retain a
-stale mounting origin and local aperture offsets are misplaced.
-
-## 4. `infer-cable-insertion-point`: explicit direction precedence
+## 3. `infer-cable-insertion-point`: explicit direction precedence
 
 **Branch/commit:** `fix/explicit-insertion-direction` / `c1eb3ce`
 
@@ -199,13 +163,11 @@ transport.
 
 ## Release / integration order
 
-1. Release `circuit-json-util` with transformed `anchor_position`.
-2. Release core with external roots, postprocessors, cache safety, and mounting
-   origin emission.
-3. Release props with `assemblyProps.device`.
-4. Release `circuit-json-to-gltf` JSCAD-plan support.
-5. Release eval, RunFrame, and CLI with the obsolete artifact path removed.
-6. Publish/migrate the current package as `@tscircuit/enclosure` when the
+1. Release core with external roots, postprocessors, and cache safety.
+2. Release props with `assemblyProps.device`.
+3. Release `circuit-json-to-gltf` JSCAD-plan support.
+4. Release eval, RunFrame, and CLI with the obsolete artifact path removed.
+5. Publish/migrate the current package as `@tscircuit/enclosure` when the
    maintainers provide its repository skeleton.
 
 ## End-to-end acceptance

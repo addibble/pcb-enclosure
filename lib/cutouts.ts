@@ -113,56 +113,6 @@ const faceFromOffset = (from: XY, center: XY): Face | undefined => {
 	return dy > 0 ? "+y" : "-y";
 };
 
-const rotate = (point: XY, degrees: number): XY => {
-	const radians = (degrees * Math.PI) / 180;
-	const cos = Math.cos(radians);
-	const sin = Math.sin(radians);
-	return {
-		x: point.x * cos - point.y * sin,
-		y: point.x * sin + point.y * cos,
-	};
-};
-
-/**
- * Merge a partial component-local aperture position over an inferred board
- * point. Working in the local frame first keeps single-axis overrides correct
- * when the component is rotated.
- */
-const resolveApertureCenter = (
-	body: ComponentBody,
-	inferred: XY,
-	position: ResolvedAperture["position"],
-): XY => {
-	if (position?.x == null && position?.y == null) return inferred;
-	const frame = body.componentFrame ?? { origin: body.center, rotationDeg: 0 };
-	const inferredUnrotated = rotate(
-		{
-			x: inferred.x - frame.origin.x,
-			y: inferred.y - frame.origin.y,
-		},
-		-frame.rotationDeg,
-	);
-	const inferredLocal = {
-		x: inferredUnrotated.x,
-		y: frame.flipY ? -inferredUnrotated.y : inferredUnrotated.y,
-	};
-	const localOffset = {
-		x: position?.x ?? inferredLocal.x,
-		y: position?.y ?? inferredLocal.y,
-	};
-	const resolvedOffset = rotate(
-		{
-			x: localOffset.x,
-			y: frame.flipY ? -localOffset.y : localOffset.y,
-		},
-		frame.rotationDeg,
-	);
-	return {
-		x: frame.origin.x + resolvedOffset.x,
-		y: frame.origin.y + resolvedOffset.y,
-	};
-};
-
 /**
  * The face an edge/top-mount body's opening cuts: a `from_above` connector opens
  * the lid (no edge proximity needed); otherwise prefer footprint insertion
@@ -271,10 +221,9 @@ type BodyExtents = { lengthMm?: number; widthMm?: number; heightMm?: number };
 const zCenterFromBoardTop = (
 	body: ComponentBody,
 	boardThicknessMm: number,
-	positionZ?: number,
 	bodyHeightMm: number = body.heightMm,
 ): number => {
-	const localZ = positionZ ?? (body.zOffsetMm ?? 0) + bodyHeightMm / 2;
+	const localZ = (body.zOffsetMm ?? 0) + bodyHeightMm / 2;
 	return body.side === "bottom" ? -boardThicknessMm - localZ : localZ;
 };
 
@@ -332,15 +281,12 @@ const autoCutoutFor = (
 	if (!b.cutoutAperture) return null;
 	const ap = resolveCutoutAperture(b.cutoutAperture, rules);
 	if (!ap) return null;
-	const inferredCenter = b.cableInsertionCenter ?? b.center;
-	const center = resolveApertureCenter(b, inferredCenter, ap.position);
+	const center = b.cableInsertionCenter ?? b.center;
 	const face = autoCutoutFace(b, features.bounds, rules, center);
 	if (!face) return null;
 	// aperture height only applies to a side wall; a lid/floor opening is planar
-	const zFor = (positionZ?: number) =>
-		isSide(face)
-			? zCenterFromBoardTop(b, features.boardThicknessMm, positionZ)
-			: 0;
+	const zFor = () =>
+		isSide(face) ? zCenterFromBoardTop(b, features.boardThicknessMm) : 0;
 	const dims = apertureToCutout(ap);
 	return {
 		id: b.id,
@@ -348,7 +294,7 @@ const autoCutoutFor = (
 		center,
 		face,
 		...dims,
-		zCenterAboveBoardMm: zFor(ap.position?.z),
+		zCenterAboveBoardMm: zFor(),
 	};
 };
 
@@ -408,8 +354,7 @@ export const resolveCutouts = (
 				: body
 					? resolveCutoutAperture(body.cutoutAperture, rules)
 					: null;
-		const center =
-			body && ap ? resolveApertureCenter(body, c.at, ap.position) : c.at;
+		const center = c.at;
 		const face =
 			faceFromDirection(c.direction) ??
 			(c.face && c.face !== "auto" ? c.face : undefined) ??
@@ -453,12 +398,7 @@ export const resolveCutouts = (
 			zCenterAboveBoardMm:
 				c.zCenterAboveBoard ??
 				(isSide(face) && body
-					? zCenterFromBoardTop(
-							body,
-							features.boardThicknessMm,
-							ap?.position?.z,
-							bodyHeightMm,
-						)
+					? zCenterFromBoardTop(body, features.boardThicknessMm, bodyHeightMm)
 					: 0),
 		});
 	}

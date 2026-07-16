@@ -384,11 +384,6 @@ const componentBody = (
 	return {
 		id: name,
 		center,
-		componentFrame: {
-			origin: xyOf(comp.anchor_position) ?? xyOf(comp.center) ?? center,
-			rotationDeg: asNumber(comp.rotation) ?? 0,
-			flipY: side === "bottom",
-		},
 		lengthMm: extents.lengthMm,
 		widthMm: extents.widthMm,
 		heightMm: bodyHeight(ov, cad, ftype, h),

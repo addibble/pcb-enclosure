@@ -98,12 +98,7 @@ export const Dc0055a20Smt = ({
 		pcbRotation={pcbRotation}
 	>
 		{children ?? (
-			<enclosure.cutoutaperture
-				shape="rect"
-				width={8.5}
-				height={10}
-				position={{ z: 5.5 }}
-			/>
+			<enclosure.cutoutaperture shape="rect" width={8.5} height={10} />
 		)}
 	</connector>
 );

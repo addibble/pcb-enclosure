@@ -9,13 +9,11 @@ export const prefabBoardAperturesBySourceComponentId: Record<
 		shape: "rect",
 		widthMm: 9,
 		heightMm: 8.5,
-		position: { z: 4.25 },
 	},
 	src_j2: {
 		shape: "rect",
 		widthMm: 8,
 		heightMm: 4,
-		position: { z: 2 },
 	},
 };
 

@@ -34,7 +34,6 @@ const edgeHeader: ComponentBody = {
 		shape: "rect",
 		widthMm: 9,
 		heightMm: 8.5,
-		position: { z: 4.25 },
 	},
 };
 

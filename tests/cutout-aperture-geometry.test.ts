@@ -51,7 +51,6 @@ test("a USB-C rounded_rect wall aperture renders a solid base + lid", () => {
 			widthMm: 9.2,
 			heightMm: 3.3,
 			cornerRadiusMm: 1.65,
-			position: { z: 1.65 },
 		},
 		insertionDirection: "from_right",
 	});
@@ -68,12 +67,10 @@ test("a D-hole (toggle) and a circle (barrel) render from part metadata", () => 
 			shape: "d_shape" as const,
 			diameterMm: 6.1,
 			flatOffsetMm: 2.3,
-			position: { z: 6 },
 		},
 		{
 			shape: "circle" as const,
 			diameterMm: 8,
-			position: { z: 5 },
 		},
 	]) {
 		const f = withConnector({

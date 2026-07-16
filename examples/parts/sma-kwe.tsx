@@ -95,12 +95,6 @@ export const SmaKwe = ({
 		pcbY={pcbY}
 		pcbRotation={pcbRotation}
 	>
-		{children ?? (
-			<enclosure.cutoutaperture
-				shape="circle"
-				radius={3.25}
-				position={{ z: 7 }}
-			/>
-		)}
+		{children ?? <enclosure.cutoutaperture shape="circle" radius={3.25} />}
 	</connector>
 );

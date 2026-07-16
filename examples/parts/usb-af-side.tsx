@@ -111,12 +111,7 @@ export const UsbAfSide = ({
 		pcbRotation={pcbRotation}
 	>
 		{children ?? (
-			<enclosure.cutoutaperture
-				shape="rect"
-				width={6}
-				height={13.2}
-				position={{ z: 7.5 }}
-			/>
+			<enclosure.cutoutaperture shape="rect" width={6} height={13.2} />
 		)}
 	</connector>
 );

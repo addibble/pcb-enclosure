@@ -28,7 +28,6 @@ const toApertureProfile = (
 	props: ParsedEnclosureCutoutApertureJsxProps,
 ): ApertureProfile => {
 	const common = {
-		position: props.position,
 		marginMm: props.margin,
 	};
 	if (props.shape === "circle") {

@@ -146,12 +146,7 @@ export const TypeC14pCc26 = ({
 		pcbRotation={pcbRotation}
 	>
 		{children ?? (
-			<enclosure.cutoutaperture
-				shape="pill"
-				width={3.66}
-				height={8.34}
-				position={{ z: 6.75 }}
-			/>
+			<enclosure.cutoutaperture shape="pill" width={3.66} height={8.34} />
 		)}
 	</connector>
 );

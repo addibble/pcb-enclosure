@@ -35,13 +35,13 @@ use these coordinated addibble-owned fork branches together:
 
 | Repository branch | Required capability |
 | --- | --- |
-| [`addibble/core:rfc/parametric-enclosures`](https://github.com/addibble/core/tree/rfc/parametric-enclosures) | Generic external React roots, canonical Circuit JSON postprocessors, cache opt-out for external metadata, and mounting-origin emission. |
-| [`addibble/circuit-json-util:rfc/parametric-enclosures`](https://github.com/addibble/circuit-json-util/tree/rfc/parametric-enclosures) | Transform `pcb_component.anchor_position` with component/group layout. |
-| [`tscircuit/props:enclosure-support`](https://github.com/tscircuit/props) | Released enclosure contracts plus the pending `assembly.device` contract. |
+| [`addibble/core:rfc/parametric-enclosures`](https://github.com/addibble/core/tree/rfc/parametric-enclosures) | Generic external React roots, canonical Circuit JSON postprocessors, and cache opt-out for external metadata. |
+| [`addibble/props:enclosure-support`](https://github.com/addibble/props/tree/enclosure-support) | Released enclosure contracts plus the pending `assembly.device` contract. |
 | [`addibble/infer-cable-insertion-point:fix/explicit-insertion-direction`](https://github.com/addibble/infer-cable-insertion-point/tree/fix/explicit-insertion-direction) | Explicit mating direction takes precedence over geometry guessing. |
 | [`addibble/eval:rfc/parametric-enclosures`](https://github.com/addibble/eval/tree/rfc/parametric-enclosures) | Runtime `@tscircuit/props`; enclosure CAD travels through normal Circuit JSON. |
 | [`tscircuit/circuit-json-to-gltf#170`](https://github.com/tscircuit/circuit-json-to-gltf/pull/170) | Execute the existing `cad_component.model_jscad` field. |
-| `runframe` / `cli` | No enclosure-specific transport; both consume canonical Circuit JSON. |
+| [`addibble/runframe:rfc/parametric-enclosures`](https://github.com/addibble/runframe/tree/rfc/parametric-enclosures) | Render canonical Circuit JSON directly without the old blob-artifact bridge. |
+| [`addibble/cli:rfc/parametric-enclosures`](https://github.com/addibble/cli/tree/rfc/parametric-enclosures) | Use canonical Circuit JSON for sequential/parallel GLB, PNG, GLTF, and static outputs. |
 | [`addibble/jscad-electronics:fix/connected-right-angle-pinrow`](https://github.com/addibble/jscad-electronics/tree/fix/connected-right-angle-pinrow) | Correct connected geometry for inverted right-angle pin rows. |
 
 `3d-viewer` needs no enclosure-specific patch; canonical
@@ -104,21 +104,15 @@ import { enclosure } from "pcb-enclosure"
     shape="pill"
     width={3.66}
     height={8.34}
-    position={{ z: "6.75mm" }}
   />
 </connector>
 ```
 
-The upstream schema supports `pill`, `rect`, and `circle`; circle dimensions use
-`radius`. `pcb-enclosure` retains `position` as a backwards-compatible extension
-while that placement vocabulary continues to evolve upstream.
-
-`position` is measured in the component's local mounting frame: x/y from the
-footprint origin and z from the component-side PCB surface, positive away from
-the board. Every axis is optional; enclosure resolution keeps the existing
-part-type inference for omitted axes. Position coordinates use ordinary
-tscircuit distances, so default-unit numbers and strings such as `"6.75mm"` or
-`"0.1in"` can be mixed.
+The public element is exactly the upstream `enclosure.cutoutaperture` schema:
+`pill`, `rect`, and `circle`, with circle dimensions expressed as `radius`.
+Placement comes from the component's insertion direction, inferred cable point,
+and CAD/body bounds; the aperture element supplies only opening geometry and
+margin.
 
 This requires a coordinated data path:
 

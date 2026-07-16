@@ -169,12 +169,7 @@ export const UsbTypeC018 = ({
 			pcbRotation={pcbRotation}
 		>
 			{children ?? (
-				<enclosure.cutoutaperture
-					shape="pill"
-					width={9.2}
-					height={3.3}
-					position={{ z: 1.65 }}
-				/>
+				<enclosure.cutoutaperture shape="pill" width={9.2} height={3.3} />
 			)}
 		</connector>
 	);

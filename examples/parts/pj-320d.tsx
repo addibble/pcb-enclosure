@@ -110,12 +110,6 @@ export const Pj320d = ({
 		pcbY={pcbY}
 		pcbRotation={pcbRotation}
 	>
-		{children ?? (
-			<enclosure.cutoutaperture
-				shape="circle"
-				radius={3.25}
-				position={{ z: 2.7 }}
-			/>
-		)}
+		{children ?? <enclosure.cutoutaperture shape="circle" radius={3.25} />}
 	</connector>
 );

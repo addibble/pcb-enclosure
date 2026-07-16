@@ -22,7 +22,6 @@ test("extracts source-component cutout aperture metadata", () => {
 				pcb_component_id: "pcb_j1",
 				source_component_id: "source_j1",
 				center: { x: 8, y: 0 },
-				anchor_position: { x: 7.5, y: -0.25 },
 				layer: "top",
 				rotation: 90,
 				insertion_direction: "from_right",
@@ -45,7 +44,6 @@ test("extracts source-component cutout aperture metadata", () => {
 					widthMm: 3.66,
 					heightMm: 8.34,
 					cornerRadiusMm: 1.83,
-					position: { x: 1.25, z: 6.75 },
 				},
 			},
 		},
@@ -56,11 +54,5 @@ test("extracts source-component cutout aperture metadata", () => {
 		widthMm: 3.66,
 		heightMm: 8.34,
 		cornerRadiusMm: 1.83,
-		position: { x: 1.25, z: 6.75 },
-	});
-	expect(features.componentBodies[0].componentFrame).toEqual({
-		origin: { x: 7.5, y: -0.25 },
-		rotationDeg: 90,
-		flipY: false,
 	});
 });
